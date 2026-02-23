@@ -3,6 +3,7 @@ const config = require("../../config/config");
 const authRoute = require("./auth.routes");
 const userRoute = require("./user.routes");
 const heroSectionRoute = require("./heroSection.routes");
+const destinationRoute = require("./destination.routes");
 const docsRoute = require("./docs.routes");
 
 
@@ -20,6 +21,10 @@ const defaultRoutes = [
   {
     path: "/hero-section",
     route: heroSectionRoute,
+  },
+  {
+    path: "/destinations",
+    route: destinationRoute,
   },
 ];
 
