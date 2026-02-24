@@ -9,6 +9,13 @@ const docsRoute = require("./docs.routes");
 
 const router = express.Router();
 
+// ✅ Root route
+router.get("/", (req, res) => {
+  res.status(200).json({
+    message: "API is working.",
+  });
+});
+
 const defaultRoutes = [
   {
     path: "/auth",
