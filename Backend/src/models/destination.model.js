@@ -6,6 +6,7 @@ const destinationSchema = mongoose.Schema(
     name: {
       type: String,
       required: true,
+      unique: true,
       trim: true,
     },
     motto: {
@@ -32,11 +33,28 @@ const destinationSchema = mongoose.Schema(
       type: Number,
       default: 0,
     },
+    price: {
+      type: Number,
+      required: true,
+    },
+    images: {
+      type: [String],
+      required: true,
+    },
+    video: {
+      type: String,
+    },
     type: {
       type: String,
       enum: ["single", "combo"],
       default: "single",
     },
+    subDestinations: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Destination",
+      },
+    ],
     status: {
       type: String,
       enum: ["active", "inactive"],

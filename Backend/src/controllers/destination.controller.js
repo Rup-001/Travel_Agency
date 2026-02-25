@@ -9,10 +9,20 @@ const createDestination = catchAsync(async (req, res) => {
   const destination = await destinationService.createDestination(req.body);
   res.status(httpStatus.CREATED).json(
     response({
-      message: "Destination Created",
-      status: "OK",
-      statusCode: httpStatus.CREATED,
-      data: destination,
+
+      message: "Destination created ",
+            status: "OK",
+            statusCode: httpStatus.CREATED,
+            data: {destination},
+
+    //   success: true,
+    // statusCode: httpStatus.CREATED,
+    // message: "Destination created successfully!!!!",
+    // data: destination,
+      // message: "Destination Created",
+      // status: "OK",
+      // statusCode: httpStatus.CREATED,
+      // data: destination,
     })
   );
 });
@@ -30,6 +40,7 @@ const getDestinations = catchAsync(async (req, res) => {
     })
   );
 });
+
 
 const getDestination = catchAsync(async (req, res) => {
   const destination = await destinationService.getDestinationById(req.params.destinationId);

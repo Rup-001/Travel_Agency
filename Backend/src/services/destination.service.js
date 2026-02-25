@@ -8,6 +8,9 @@ const ApiError = require("../utils/ApiError");
  * @returns {Promise<Destination>}
  */
 const createDestination = async (destinationBody) => {
+  if (await Destination.findOne({ name: destinationBody.name })) {
+    throw new ApiError(httpStatus.BAD_REQUEST, "Destination name already exists");
+  }
   return Destination.create(destinationBody);
 };
 
@@ -21,7 +24,7 @@ const createDestination = async (destinationBody) => {
  * @returns {Promise<QueryResult>}
  */
 const queryDestinations = async (filter, options) => {
-  const destinations = await Destination.paginate(filter, options);
+  const destinations = await Destination.paginate(filter, { ...options, populate: "subDestinations" });
   return destinations;
 };
 
@@ -31,7 +34,7 @@ const queryDestinations = async (filter, options) => {
  * @returns {Promise<Destination>}
  */
 const getDestinationById = async (id) => {
-  return Destination.findById(id);
+  return Destination.findById(id).populate("subDestinations");
 };
 
 /**
@@ -44,6 +47,9 @@ const updateDestinationById = async (destinationId, updateBody) => {
   const destination = await getDestinationById(destinationId);
   if (!destination) {
     throw new ApiError(httpStatus.NOT_FOUND, "Destination not found");
+  }
+  if (updateBody.name && (await Destination.findOne({ name: updateBody.name, _id: { $ne: destinationId } }))) {
+    throw new ApiError(httpStatus.BAD_REQUEST, "Destination name already exists");
   }
   Object.assign(destination, updateBody);
   await destination.save();
