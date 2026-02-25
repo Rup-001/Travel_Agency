@@ -4,6 +4,7 @@ const authRoute = require("./auth.routes");
 const userRoute = require("./user.routes");
 const heroSectionRoute = require("./heroSection.routes");
 const destinationRoute = require("./destination.routes");
+const inventoryRoute = require("./inventory.routes");
 const docsRoute = require("./docs.routes");
 
 
@@ -32,6 +33,10 @@ const defaultRoutes = [
   {
     path: "/destinations",
     route: destinationRoute,
+  },
+  {
+    path: "/inventory",
+    route: inventoryRoute,
   },
 ];
 
