@@ -2,7 +2,7 @@ module.exports.Token = require('./token.model');
 module.exports.User = require('./user.model');
 module.exports.HeroSection = require('./heroSection.model');
 module.exports.Destination = require('./destination.model');
-module.exports.Inventory = require('./inventory.model');
+module.exports.TicketInventory = require('./ticketInventory.model');
 
 
 module.exports.Notification = require('./notification.model');
