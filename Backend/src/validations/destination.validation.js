@@ -4,7 +4,7 @@ const { objectId } = require("./custom.validation");
 const createDestination = {
   body: Joi.object().keys({
     name: Joi.string().required(),
-    motto: Joi.string().allow(""),
+    tagline: Joi.string().allow(""),
     location: Joi.string().allow(""),
     description: Joi.string().allow(""),
     highlights: Joi.string().allow(""),
@@ -43,7 +43,7 @@ const updateDestination = {
   body: Joi.object()
     .keys({
       name: Joi.string(),
-      motto: Joi.string().allow(""),
+      tagline: Joi.string().allow(""),
       location: Joi.string().allow(""),
       description: Joi.string().allow(""),
       highlights: Joi.string().allow(""),

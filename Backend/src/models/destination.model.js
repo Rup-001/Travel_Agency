@@ -9,7 +9,7 @@ const destinationSchema = mongoose.Schema(
       unique: true,
       trim: true,
     },
-    motto: {
+    tagline: {
       type: String,
       trim: true,
     },

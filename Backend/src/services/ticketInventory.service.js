@@ -120,8 +120,10 @@ const processTicketUpload = async (fileBuffer, destinationId, uploadedBy) => {
 
 
 const getTicketInventorySummary = async () => {
+
   const summary = await TicketInventory.aggregate([
     {
+      
       $group: {
         _id: "$destinationId",           // group by destination
 
@@ -147,7 +149,7 @@ const getTicketInventorySummary = async () => {
       }
     },
     {
-      $unwind: "$destinationData"      // turns [{...}] → {...}   (very important!)
+      $unwind: "$destinationData"      // turns [{...}] → {...}   (very important!) from array to object
     },
     {
       $addFields: {
@@ -180,12 +182,16 @@ const getTicketInventorySummary = async () => {
         _id: 0,                           // hide the mongo _id if you don't need it
         destinationId: "$_id",            // rename back to something meaningful
         destinationName: "$destinationData.name",   // pick only what you want
+        destination: "$destinationData",   // pick only what you want
         // destinationCity: "$destinationData.city",   // add more fields if useful
         totalTickets: 1,
         availableTickets: 1,
         availablePercentage: { $round: ["$availablePercentage", 1] },  // nicer number
         stockStatus: 1
       }
+    },
+    {
+        $sort: { destinationId: 1 }  
     }
   ]);
 

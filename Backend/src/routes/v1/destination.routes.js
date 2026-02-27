@@ -23,10 +23,11 @@ router
   .route("/")
   .post(
     auth("admin"),
-    upload.fields([
-      { name: "images", maxCount: 10 },
-      { name: "video", maxCount: 1 },
-    ]),
+    // upload.fields([
+    //   { name: "images", maxCount: 10 },
+    //   { name: "video", maxCount: 1 },
+    // ]),
+    upload.fields([{ name: "media", maxCount: 5 }]),
     validate(destinationValidation.createDestination),
     destinationController.createDestination
   )
@@ -37,10 +38,11 @@ router
   .get(validate(destinationValidation.getDestination), destinationController.getDestination)
   .patch(
     auth("admin"),
-    upload.fields([
-      { name: "images", maxCount: 10 },
-      { name: "video", maxCount: 1 },
-    ]),
+    // upload.fields([
+    //   { name: "images", maxCount: 10 },
+    //   { name: "video", maxCount: 1 },
+    // ]),
+    upload.fields([{ name: "media", maxCount: 5 }]),
     validate(destinationValidation.updateDestination),
     destinationController.updateDestination
   )
