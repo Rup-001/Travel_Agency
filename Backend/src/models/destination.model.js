@@ -33,9 +33,27 @@ const destinationSchema = mongoose.Schema(
       type: Number,
       default: 0,
     },
-    price: {
+    adultPrice: {
       type: Number,
       required: true,
+    },
+    childPrice: {
+      type: Number,
+      required: true,
+    },
+    adultRegularPrice: {
+      type: Number,
+    },
+    childRegularPrice: {
+      type: Number,
+    },
+    discountPercentage: {
+      type: Number,
+      default: 0,
+    },
+    comboDiscountPercentage: {
+      type: Number,
+      default: 0,
     },
     media: {
       type: [String],

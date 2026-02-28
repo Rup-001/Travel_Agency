@@ -28,8 +28,10 @@ const toJSON = (schema) => {
         }
       });
 
-      ret.id = ret._id.toString();
-      delete ret._id;
+      if (ret._id) {
+        ret.id = ret._id.toString();
+        delete ret._id;
+      }
       delete ret.__v;
       delete ret.fcmToken;
       delete ret.isDeleted;
