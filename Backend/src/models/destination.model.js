@@ -37,12 +37,9 @@ const destinationSchema = mongoose.Schema(
       type: Number,
       required: true,
     },
-    images: {
+    media: {
       type: [String],
       required: true,
-    },
-    video: {
-      type: String,
     },
     type: {
       type: String,

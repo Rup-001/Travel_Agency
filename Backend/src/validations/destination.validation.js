@@ -11,8 +11,7 @@ const createDestination = {
     conditions: Joi.string().allow(""),
     rating: Joi.number().min(0).max(5),
     price: Joi.number().required(),
-    images: Joi.array().items(Joi.string()),
-    video: Joi.string().allow(""),
+    media: Joi.array().items(Joi.string()),
     type: Joi.string().valid("single", "combo"),
     subDestinations: Joi.array().items(Joi.string().custom(objectId)),
     status: Joi.string().valid("active", "inactive"),
@@ -50,14 +49,15 @@ const updateDestination = {
       conditions: Joi.string().allow(""),
       rating: Joi.number().min(0).max(5),
       price: Joi.number(),
-      images: Joi.array().items(Joi.string()),
-      video: Joi.string().allow(""),
+      media: Joi.array().items(Joi.string()),
+      mediaToRemove: Joi.alternatives().try(Joi.array().items(Joi.string()), Joi.string()),
       type: Joi.string().valid("single", "combo"),
       subDestinations: Joi.array().items(Joi.string().custom(objectId)),
       status: Joi.string().valid("active", "inactive"),
     })
     .min(1),
 };
+
 
 const deleteDestination = {
   params: Joi.object().keys({

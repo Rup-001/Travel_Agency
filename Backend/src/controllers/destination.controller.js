@@ -6,92 +6,45 @@ const response = require("../config/response");
 const { destinationService } = require("../services");
 
 
+const unlinkImage = require("../common/unlinkImage");
+const path = require("path");
+
 const createDestination = catchAsync(async (req, res) => {
   const destinationData = { ...req.body };
+  const mediaPaths = [];
 
-  if (req.files?.media?.length > 0) {
-    const images = [];
-    const videos = [];
+  try {
+    if (req.files?.media?.length > 0) {
+      req.files.media.forEach((file) => {
+        mediaPaths.push(`/uploads/destinations/${file.filename}`);
+      });
 
-    req.files.media.forEach(file => {
-      const filePath = `/uploads/destinations/${file.filename}`;
-      if (file.mimetype.startsWith('image/')) {
-        images.push(filePath);
-      } else if (file.mimetype.startsWith('video/')) {
-        videos.push(filePath);
+      if (mediaPaths.length > 5) {
+        throw new ApiError(400, "Total media files cannot exceed 5");
       }
-    });
-
-    if (images.length + videos.length > 5) {
-      throw new ApiError(400, "Total media files cannot exceed 5");
+      destinationData.media = mediaPaths;
     }
 
-    destinationData.images = images;
-    destinationData.videos = videos;
+    const destination = await destinationService.createDestination(destinationData);
+
+    res.status(httpStatus.CREATED).json(
+      response({
+        message: "Destination created",
+        status: "OK",
+        statusCode: httpStatus.CREATED,
+        data: { destination },
+      })
+    );
+  } catch (error) {
+    // 🚩 ROLLBACK: Delete uploaded files if something went wrong
+    if (mediaPaths.length > 0) {
+      const fullPaths = mediaPaths.map((p) => path.join(__dirname, "../../public", p));
+      unlinkImage(fullPaths);
+    }
+    throw error;
   }
-
-  const destination = await destinationService.createDestination(destinationData);
-
-  res.status(httpStatus.CREATED).json(
-    response({
-      message: "Destination created",
-      status: "OK",
-      statusCode: httpStatus.CREATED,
-      data: { destination },
-    })
-  );
 });
 
-// const createDestination = catchAsync(async (req, res) => {
-
-  
-//   const destinationBody = { ...req.body };
-//   if (req.files?.media && req.files.media.length > 0) {
-//     destinationBody.media = req.files.media.map(file => 
-//       `/uploads/destinations/${file.filename}`  
-//     );
-//   }
-
-
-//   if (req.files?.video && req.files.video.length > 0) {
-//     destinationBody.video = `/uploads/destinations/${req.files.video[0].filename}`;
-//   }
-
-//   const destination = await destinationService.createDestination(destinationBody);
-
-//   res.status(httpStatus.CREATED).json(
-//     response({
-//       message: "Destination created",
-//       status: "OK",
-//       statusCode: httpStatus.CREATED,
-//       data: { destination },
-//     })
-//   );
-// });
-
-
-
-// const createDestination = catchAsync(async (req, res) => {
-//   const destination = await destinationService.createDestination(req.body);
-//   res.status(httpStatus.CREATED).json(
-//     response({
-
-//       message: "Destination created ",
-//             status: "OK",
-//             statusCode: httpStatus.CREATED,
-//             data: {destination},
-
-//     //   success: true,
-//     // statusCode: httpStatus.CREATED,
-//     // message: "Destination created successfully!!!!",
-//     // data: destination,
-//       // message: "Destination Created",
-//       // status: "OK",
-//       // statusCode: httpStatus.CREATED,
-//       // data: destination,
-//     })
-//   );
-// });
 
 const getDestinations = catchAsync(async (req, res) => {
   const filter = pick(req.query, ["name", "type", "status"]);
@@ -127,85 +80,70 @@ const getDestination = catchAsync(async (req, res) => {
 
 const updateDestination = catchAsync(async (req, res) => {
   const destinationId = req.params.destinationId;
+  const destination = await destinationService.getDestinationById(destinationId);
+
+  if (!destination) {
+    throw new ApiError(httpStatus.NOT_FOUND, "Destination not found");
+  }
 
   const updateData = { ...req.body };
+  let mediaToRemove = req.body.mediaToRemove || [];
 
+  // Normalize mediaToRemove to an array
+  if (typeof mediaToRemove === "string") {
+    mediaToRemove = [mediaToRemove];
+  }
+
+  const newMediaPaths = [];
   if (req.files?.media?.length > 0) {
-    const images = [];
-    const videos = [];
-
-    req.files.media.forEach(file => {
-      const filePath = `/uploads/destinations/${file.filename}`;
-      if (file.mimetype.startsWith('image/')) {
-        images.push(filePath);
-      } else if (file.mimetype.startsWith('video/')) {
-        videos.push(filePath);
-      }
+    req.files.media.forEach((file) => {
+      newMediaPaths.push(`/uploads/destinations/${file.filename}`);
     });
+  }
 
-    if (images.length + videos.length > 5) {
+  try {
+    // 1. Start with current media
+    let currentMedia = destination.media || [];
+
+    // 2. Remove specified files
+    let updatedMedia = currentMedia.filter((m) => !mediaToRemove.includes(m));
+
+    // 3. Add new uploads
+    updatedMedia = [...updatedMedia, ...newMediaPaths];
+
+    // 4. Validate limit
+    if (updatedMedia.length > 5) {
       throw new ApiError(400, "Total media files cannot exceed 5");
     }
 
-    
-    updateData.images = images;
-    updateData.videos = videos;
+    updateData.media = updatedMedia;
+    delete updateData.mediaToRemove; // Don't save this field to DB
+
+    const updated = await destinationService.updateDestinationById(destinationId, updateData);
+
+    // ✅ SUCCESS: Now we can safely delete the 'mediaToRemove' files from disk
+    if (mediaToRemove.length > 0) {
+      const fullPathsToRemove = mediaToRemove.map((p) => path.join(__dirname, "../../public", p));
+      unlinkImage(fullPathsToRemove);
+    }
+
+    res.status(httpStatus.OK).json(
+      response({
+        message: "Destination Updated",
+        status: "OK",
+        statusCode: httpStatus.OK,
+        data: updated,
+      })
+    );
+  } catch (error) {
+    // 🚩 ROLLBACK: Delete NEWLY uploaded files if the process failed
+    if (newMediaPaths.length > 0) {
+      const fullPathsToRollback = newMediaPaths.map((p) => path.join(__dirname, "../../public", p));
+      unlinkImage(fullPathsToRollback);
+    }
+    throw error;
   }
-  
-
-  const updated = await destinationService.updateDestinationById(destinationId, updateData);
-
-  res.status(httpStatus.OK).json(
-    response({
-      message: "Destination Updated",
-      status: "OK",
-      statusCode: httpStatus.OK,
-      data: updated,
-    })
-  );
 });
-
-
-
-// const updateDestination = catchAsync(async (req, res) => {
-//   const updateData = { ...req.body };
-
-//   if (req.files?.images?.length > 0) {
-//     updateData.images = req.files.images.map(file => 
-//       `/uploads/destinations/${file.filename}`
-//     );
-
-//   }
-//   if (req.files?.video?.length > 0) {
-//     updateData.video = `/uploads/destinations/${req.files.video[0].filename}`;
-  
-//   }
-//   const updatedDestination = await destinationService.updateDestinationById(
-//     req.params.destinationId,
-//     updateData
-//   );
-
-//   res.status(httpStatus.OK).json(
-//     response({
-//       message: "Destination Updated",
-//       status: "OK",
-//       statusCode: httpStatus.OK,
-//       data: updatedDestination,
-//     })
-//   );
-// });
-
-// const updateDestination = catchAsync(async (req, res) => {
-//   const destination = await destinationService.updateDestinationById(req.params.destinationId, req.body);
-//   res.status(httpStatus.OK).json(
-//     response({
-//       message: "Destination Updated",
-//       status: "OK",
-//       statusCode: httpStatus.OK,
-//       data: destination,
-//     })
-//   );
-// });
 
 const deleteDestination = catchAsync(async (req, res) => {
   await destinationService.deleteDestinationById(req.params.destinationId);
