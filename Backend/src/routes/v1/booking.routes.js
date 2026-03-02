@@ -6,6 +6,8 @@ const { bookingController } = require("../../controllers");
 
 const router = express.Router();
 
+router.post("/webhook", bookingController.stripeWebhook);
+
 router
   .route("/")
   .post(auth(), validate(bookingValidation.createBooking), bookingController.createBooking)

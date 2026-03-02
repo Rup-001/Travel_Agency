@@ -68,7 +68,7 @@ const calculateBookingTotal = async (destinationId, adults, children, promoCodeS
 /**
  * Create a booking with ticket reservation and Stripe
  * @param {Object} bookingBody
- * @returns {Promise<Object>} - returns booking and stripeClientSecret
+ * @returns {Promise<Object>} - returns booking and stripeUrl
  */
 const createBooking = async (bookingBody) => {
   const totalPeople = bookingBody.adults + (bookingBody.children || 0);
@@ -94,17 +94,8 @@ const createBooking = async (bookingBody) => {
     bookingBody.promoCode
   );
 
-  // 3. Create Stripe Payment Intent
-  const paymentIntent = await stripeService.createPaymentIntent(pricing.finalTotal);
-
-  // 4. Reserve Tickets (Mark as sold)
+  // 3. Create the Booking Record (Initial)
   const ticketIds = availableTickets.map((t) => t._id);
-  await TicketInventory.updateMany(
-    { _id: { $in: ticketIds } },
-    { $set: { status: "sold" } }
-  );
-
-  // 5. Create the Booking Record
   const finalBookingData = {
     ...bookingBody,
     totalAmount: pricing.finalTotal,
@@ -112,11 +103,25 @@ const createBooking = async (bookingBody) => {
     adultPriceAtBooking: pricing.adultPriceAtBooking,
     childPriceAtBooking: pricing.childPriceAtBooking,
     tickets: ticketIds,
-    paymentIntentId: paymentIntent.id,
-    status: "pending", // Payment hasn't been confirmed yet
+    status: "pending",
   };
 
   const booking = await Booking.create(finalBookingData);
+
+  // 4. Create Stripe Checkout Session
+  const session = await stripeService.createCheckoutSession({
+    amount: pricing.finalTotal,
+    bookingId: booking._id,
+    destinationName: pricing.destinationName,
+    successUrl: "http://localhost:3000/booking-success", // Update with your frontend URL
+    cancelUrl: "http://localhost:3000/booking-cancel",   // Update with your frontend URL
+  });
+
+  // 5. Reserve Tickets (Mark as sold)
+  await TicketInventory.updateMany(
+    { _id: { $in: ticketIds } },
+    { $set: { status: "sold" } }
+  );
 
   // If a promo code was used, increment usage
   if (pricing.appliedPromo) {
@@ -126,7 +131,7 @@ const createBooking = async (bookingBody) => {
 
   return {
     booking,
-    clientSecret: paymentIntent.client_secret,
+    checkoutUrl: session.url,
   };
 };
 
@@ -166,10 +171,29 @@ const updateBookingStatus = async (bookingId, status) => {
   return booking;
 };
 
+/**
+ * Complete booking payment and update status
+ * @param {string} bookingId
+ * @returns {Promise<Booking>}
+ */
+const completeBookingPayment = async (bookingId) => {
+  const booking = await Booking.findById(bookingId);
+  if (!booking) {
+    throw new ApiError(httpStatus.NOT_FOUND, "Booking not found");
+  }
+  if (booking.status === "paid") {
+    return booking; // Already processed
+  }
+  booking.status = "paid";
+  await booking.save();
+  return booking;
+};
+
 module.exports = {
   createBooking,
   queryBookings,
   getBookingById,
   updateBookingStatus,
   calculateBookingTotal,
+  completeBookingPayment,
 };

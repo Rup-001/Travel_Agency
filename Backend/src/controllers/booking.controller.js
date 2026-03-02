@@ -3,20 +3,20 @@ const pick = require("../utils/pick");
 const ApiError = require("../utils/ApiError");
 const catchAsync = require("../utils/catchAsync");
 const response = require("../config/response");
-const { bookingService } = require("../services");
+const { bookingService, stripeService } = require("../services");
 
 const createBooking = catchAsync(async (req, res) => {
   const bookingData = { 
     ...req.body, 
     user: req.user.id // Auto-assign the logged-in user
   };
-  const booking = await bookingService.createBooking(bookingData);
+  const result = await bookingService.createBooking(bookingData);
   res.status(httpStatus.CREATED).json(
     response({
       message: "Booking created",
       status: "OK",
       statusCode: httpStatus.CREATED,
-      data: { booking },
+      data: result,
     })
   );
 });
@@ -62,9 +62,30 @@ const updateBookingStatus = catchAsync(async (req, res) => {
   );
 });
 
+const stripeWebhook = catchAsync(async (req, res) => {
+  const signature = req.headers["stripe-signature"];
+  let event;
+
+  try {
+    event = stripeService.constructEvent(req.rawBody, signature);
+  } catch (err) {
+    throw new ApiError(httpStatus.BAD_REQUEST, `Webhook Error: ${err.message}`);
+  }
+
+  // Handle the event
+  if (event.type === "checkout.session.completed") {
+    const session = event.data.object;
+    // We stored bookingId in client_reference_id during session creation
+    await bookingService.completeBookingPayment(session.client_reference_id);
+  }
+
+  res.status(httpStatus.OK).send({ received: true });
+});
+
 module.exports = {
   createBooking,
   getBookings,
   getBooking,
   updateBookingStatus,
+  stripeWebhook,
 };
