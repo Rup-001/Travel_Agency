@@ -6,6 +6,7 @@ const heroSectionRoute = require("./heroSection.routes");
 const destinationRoute = require("./destination.routes");
 const ticketInventoryRoute = require("./ticketInventory.routes");
 const promoCodeRoute = require("./promoCode.routes");
+const bookingRoute = require("./booking.routes");
 const docsRoute = require("./docs.routes");
 
 
@@ -42,6 +43,10 @@ const defaultRoutes = [
   {
     path: "/promo-codes",
     route: promoCodeRoute,
+  },
+  {
+    path: "/bookings",
+    route: bookingRoute,
   },
 ];
 

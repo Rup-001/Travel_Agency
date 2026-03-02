@@ -6,3 +6,4 @@ module.exports.userService = require('./user.service');
 module.exports.destinationService = require('./destination.service');
 module.exports.ticketInventoryService = require('./ticketInventory.service');
 module.exports.promoCodeService = require('./promoCode.service');
+module.exports.bookingService = require('./booking.service');

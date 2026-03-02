@@ -4,6 +4,7 @@ module.exports.HeroSection = require('./heroSection.model');
 module.exports.Destination = require('./destination.model');
 module.exports.TicketInventory = require('./ticketInventory.model');
 module.exports.PromoCode = require('./promoCode.model');
+module.exports.Booking = require('./booking.model');
 
 
 module.exports.Notification = require('./notification.model');
