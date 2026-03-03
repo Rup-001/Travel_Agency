@@ -11,11 +11,11 @@ router.post("/webhook", bookingController.stripeWebhook);
 router
   .route("/")
   .post(auth(), validate(bookingValidation.createBooking), bookingController.createBooking)
-  .get(auth("admin"), validate(bookingValidation.getBookings), bookingController.getBookings);
+  // .get(auth("admin"), validate(bookingValidation.getBookings), bookingController.getBookings);
 
 router
   .route("/:bookingId")
-  .get(auth(), bookingController.getBooking)
-  .patch(auth("admin"), validate(bookingValidation.updateBookingStatus), bookingController.updateBookingStatus);
+  // .get(auth(), bookingController.getBooking)
+  // .patch(auth("admin"), validate(bookingValidation.updateBookingStatus), bookingController.updateBookingStatus);
 
 module.exports = router;

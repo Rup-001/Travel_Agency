@@ -6,11 +6,16 @@ const response = require("../config/response");
 const { bookingService, stripeService } = require("../services");
 
 const createBooking = catchAsync(async (req, res) => {
+  // Step 1: Frontend theke request ashlo, amra user-er ID-ta set kore nilam
   const bookingData = { 
     ...req.body, 
-    user: req.user.id // Auto-assign the logged-in user
+    user: req.user.id // Logged-in user-er ID ta auto boshiye dilam
   };
+  
+  // Step 2: Ekhon bookingService-ke bollam booking-ta process korte
   const result = await bookingService.createBooking(bookingData);
+  
+  // Step 4: Shob thik thakle, frontend-ke success response pathiye dilam (sathe Stripe-er URL)
   res.status(httpStatus.CREATED).json(
     response({
       message: "Booking created",
@@ -63,22 +68,27 @@ const updateBookingStatus = catchAsync(async (req, res) => {
 });
 
 const stripeWebhook = catchAsync(async (req, res) => {
+  // Step 5: Stripe theke message (Webhook) ashlo amader kache
   const signature = req.headers["stripe-signature"];
   let event;
 
   try {
+    // Check korlam je message-ta asholei Stripe theke esheche kina
     event = stripeService.constructEvent(req.rawBody, signature);
   } catch (err) {
     throw new ApiError(httpStatus.BAD_REQUEST, `Webhook Error: ${err.message}`);
   }
 
-  // Handle the event
+  // Jodi payment successfull hoy (checkout.session.completed)
   if (event.type === "checkout.session.completed") {
     const session = event.data.object;
-    // We stored bookingId in client_reference_id during session creation
-    await bookingService.completeBookingPayment(session.client_reference_id);
+    
+    // Step 6: Booking ID-ta niye database-e status "paid" kore dilam
+    // Sathe session-ta-o pathalam jate Transaction ID ar Payment Method save kora jay
+    await bookingService.completeBookingPayment(session.client_reference_id, session);
   }
 
+  // Stripe-ke bollam je "Amra message-ta peyechi, dhonyobad!"
   res.status(httpStatus.OK).send({ received: true });
 });
 

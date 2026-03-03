@@ -12,16 +12,19 @@ const stripeService = require("./stripe.service");
  * @returns {Promise<Object>}
  */
 const calculateBookingTotal = async (destinationId, adults, children, promoCodeStr) => {
+  // Step 2.1: Database theke destination-er info nilam (Cox's Bazar-er dam koto?)
   const destination = await Destination.findById(destinationId);
   if (!destination) {
     throw new ApiError(httpStatus.NOT_FOUND, "Destination not found");
   }
 
+  // Dam hishab korchi: adults * rate + children * rate
   const subTotal = (adults * destination.adultPrice) + (children * destination.childPrice);
   let finalTotal = subTotal;
   let discountAmount = 0;
   let appliedPromo = null;
 
+  // Jodi kono Promo Code thake, sheta check korbo
   if (promoCodeStr) {
     appliedPromo = await PromoCode.findOne({
       code: promoCodeStr.toUpperCase(),
@@ -33,15 +36,12 @@ const calculateBookingTotal = async (destinationId, adults, children, promoCodeS
       throw new ApiError(httpStatus.BAD_REQUEST, "Invalid or expired promo code");
     }
 
+    // Minimum amount thakle sheta check korlam
     if (subTotal < appliedPromo.minBookingAmount) {
       throw new ApiError(httpStatus.BAD_REQUEST, `Minimum amount for this promo is ${appliedPromo.minBookingAmount}`);
     }
 
-    if (appliedPromo.usageLimit !== null && appliedPromo.usedCount >= appliedPromo.usageLimit) {
-      throw new ApiError(httpStatus.BAD_REQUEST, "Promo code usage limit reached");
-    }
-
-    // Apply discount
+    // Discount apply korlam
     if (appliedPromo.discountType === "percentage") {
       discountAmount = (subTotal * appliedPromo.discountAmount) / 100;
       if (appliedPromo.maxDiscountAmount && discountAmount > appliedPromo.maxDiscountAmount) {
@@ -73,7 +73,7 @@ const calculateBookingTotal = async (destinationId, adults, children, promoCodeS
 const createBooking = async (bookingBody) => {
   const totalPeople = bookingBody.adults + (bookingBody.children || 0);
 
-  // 1. Check Ticket Inventory Availability
+  // 1. Ticket inventory-te check korlam je jaiga ache kina
   const availableTickets = await TicketInventory.find({
     destinationId: bookingBody.destination,
     status: "available",
@@ -86,7 +86,7 @@ const createBooking = async (bookingBody) => {
     );
   }
 
-  // 2. Calculate Final Pricing
+  // 2. Final Pricing hishab korlam (Price Check step)
   const pricing = await calculateBookingTotal(
     bookingBody.destination,
     bookingBody.adults,
@@ -94,7 +94,8 @@ const createBooking = async (bookingBody) => {
     bookingBody.promoCode
   );
 
-  // 3. Create the Booking Record (Initial)
+  // 3. Database-e Booking entry create korchi (Taka katar AGEY)
+  // Ekhane status "pending" thakbe
   const ticketIds = availableTickets.map((t) => t._id);
   const finalBookingData = {
     ...bookingBody,
@@ -108,27 +109,32 @@ const createBooking = async (bookingBody) => {
 
   const booking = await Booking.create(finalBookingData);
 
-  // 4. Create Stripe Checkout Session
+  // Step 3: Stripe-er kache "URL" chailam payment-er jonno
   const session = await stripeService.createCheckoutSession({
     amount: pricing.finalTotal,
     bookingId: booking._id,
     destinationName: pricing.destinationName,
-    successUrl: "http://localhost:3000/booking-success", // Update with your frontend URL
-    cancelUrl: "http://localhost:3000/booking-cancel",   // Update with your frontend URL
+    successUrl: "http://localhost:3000/booking-success", 
+    cancelUrl: "http://localhost:3000/booking-cancel",   
   });
 
-  // 5. Reserve Tickets (Mark as sold)
+  // Save the Stripe Session ID in our database
+  booking.stripeSessionId = session.id;
+  await booking.save();
+
+  // Ticket-gulo ekhon "sold" (locked) kore rakhlam
   await TicketInventory.updateMany(
     { _id: { $in: ticketIds } },
     { $set: { status: "sold" } }
   );
 
-  // If a promo code was used, increment usage
+  // Promo code-er usage barhiye dilam
   if (pricing.appliedPromo) {
     pricing.appliedPromo.usedCount += 1;
     await pricing.appliedPromo.save();
   }
 
+  // Result-e amra booking record ebong Stripe-er link pathacchi (Step 4 response-er jonno)
   return {
     booking,
     checkoutUrl: session.url,
@@ -172,11 +178,12 @@ const updateBookingStatus = async (bookingId, status) => {
 };
 
 /**
- * Complete booking payment and update status
+ * Complete booking payment and update status with transaction details
  * @param {string} bookingId
+ * @param {Object} session - Stripe session object
  * @returns {Promise<Booking>}
  */
-const completeBookingPayment = async (bookingId) => {
+const completeBookingPayment = async (bookingId, session) => {
   const booking = await Booking.findById(bookingId);
   if (!booking) {
     throw new ApiError(httpStatus.NOT_FOUND, "Booking not found");
@@ -184,7 +191,15 @@ const completeBookingPayment = async (bookingId) => {
   if (booking.status === "paid") {
     return booking; // Already processed
   }
+  
+  // Update status and transaction info
   booking.status = "paid";
+  if (session) {
+    booking.paymentIntentId = session.payment_intent;
+    // Stripe common payment methods: 'card', 'google_pay', 'apple_pay' etc.
+    booking.paymentMethod = session.payment_method_types ? session.payment_method_types[0] : "card";
+  }
+  
   await booking.save();
   return booking;
 };

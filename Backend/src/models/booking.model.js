@@ -35,6 +35,17 @@ const bookingSchema = mongoose.Schema(
       enum: ["pending", "paid", "cancelled"],
       default: "pending",
     },
+    // Transaction Details for "Booking Hub" & "Transaction" sections
+    paymentMethod: {
+      type: String,
+      default: "card", // Card, Google Pay, Apple Pay etc.
+    },
+    paymentIntentId: {
+      type: String,
+    },
+    stripeSessionId: {
+      type: String,
+    },
     // Snapshots of prices at the time of booking
     adultPriceAtBooking: {
       type: Number,
