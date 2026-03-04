@@ -88,6 +88,9 @@ const stripeWebhook = catchAsync(async (req, res) => {
     await bookingService.completeBookingPayment(session.client_reference_id, session);
   }
 
+  console.log(event);
+
+
   // Stripe-ke bollam je "Amra message-ta peyechi, dhonyobad!"
   res.status(httpStatus.OK).send({ received: true });
 });

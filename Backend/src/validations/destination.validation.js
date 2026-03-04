@@ -4,23 +4,60 @@ const { objectId } = require("./custom.validation");
 const createDestination = {
   body: Joi.object().keys({
     name: Joi.string().required(),
-    tagline: Joi.string().allow(""),
-    location: Joi.string().allow(""),
-    description: Joi.string().allow(""),
+    subTitle: Joi.string().allow(""),
     highlights: Joi.string().allow(""),
     conditions: Joi.string().allow(""),
-    rating: Joi.number().min(0).max(5),
-    adultPrice: Joi.number().required(),
-    childPrice: Joi.number().required(),
-    adultRegularPrice: Joi.number(),
-    childRegularPrice: Joi.number(),
-    discountPercentage: Joi.number().min(0).max(100),
-    comboDiscountPercentage: Joi.number().min(0).max(100),
-    media: Joi.array().items(Joi.string()),
-    type: Joi.string().valid("single", "combo"),
-    subDestinations: Joi.array().items(Joi.string().custom(objectId)),
+    type: Joi.string().valid("single", "combo").required(),
     status: Joi.string().valid("active", "inactive"),
+
+    // Single specific fields
+    adultPreviousPrice: Joi.number().when("type", { is: "single", then: Joi.required(), otherwise: Joi.forbidden() }),
+    adultCurrentPrice: Joi.number().when("type", { is: "single", then: Joi.required(), otherwise: Joi.forbidden() }),
+    childPreviousPrice: Joi.number().when("type", { is: "single", then: Joi.required(), otherwise: Joi.forbidden() }),
+    childCurrentPrice: Joi.number().when("type", { is: "single", then: Joi.number().required(), otherwise: Joi.forbidden() }),
+    media: Joi.array().items(Joi.string()).when("type", { is: "single", then: Joi.array().optional(), otherwise: Joi.forbidden() }),
+
+    // Combo specific fields
+    comboAdultCurrentPrice: Joi.number().when("type", { is: "combo", then: Joi.number().required(), otherwise: Joi.forbidden() }),
+    comboChildCurrentPrice: Joi.number().when("type", { is: "combo", then: Joi.number().required(), otherwise: Joi.forbidden() }),
+    subDestinations: Joi.array().items(Joi.string().custom(objectId)).when("type", {
+      is: "combo",
+      then: Joi.array().min(2).required(),
+      otherwise: Joi.forbidden(),
+    }),
   }),
+};
+
+const updateDestination = {
+  params: Joi.object().keys({
+    destinationId: Joi.required().custom(objectId),
+  }),
+  body: Joi.object()
+    .keys({
+      name: Joi.string(),
+      subTitle: Joi.string().allow(""),
+      highlights: Joi.string().allow(""),
+      conditions: Joi.string().allow(""),
+      type: Joi.string().valid("single", "combo"),
+      status: Joi.string().valid("active", "inactive"),
+
+      // Fields are conditionally forbidden based on the 'type' in the body
+      adultPreviousPrice: Joi.number().when("type", { is: "single", then: Joi.number().optional(), otherwise: Joi.forbidden() }),
+      adultCurrentPrice: Joi.number().when("type", { is: "single", then: Joi.number().optional(), otherwise: Joi.forbidden() }),
+      childPreviousPrice: Joi.number().when("type", { is: "single", then: Joi.number().optional(), otherwise: Joi.forbidden() }),
+      childCurrentPrice: Joi.number().when("type", { is: "single", then: Joi.number().optional(), otherwise: Joi.forbidden() }),
+      media: Joi.array().items(Joi.string()).when("type", { is: "single", then: Joi.array().optional(), otherwise: Joi.forbidden() }),
+      mediaToRemove: Joi.alternatives().try(Joi.array().items(Joi.string()), Joi.string()),
+
+      comboAdultCurrentPrice: Joi.number().when("type", { is: "combo", then: Joi.number().optional(), otherwise: Joi.forbidden() }),
+      comboChildCurrentPrice: Joi.number().when("type", { is: "combo", then: Joi.optional(), otherwise: Joi.forbidden() }),
+      subDestinations: Joi.array().items(Joi.string().custom(objectId)).when("type", {
+        is: "combo",
+        then: Joi.array().min(2).optional(),
+        otherwise: Joi.forbidden(),
+      }),
+    })
+    .min(1),
 };
 
 const getDestinations = {
@@ -39,36 +76,6 @@ const getDestination = {
     destinationId: Joi.string().custom(objectId),
   }),
 };
-
-const updateDestination = {
-  params: Joi.object().keys({
-    destinationId: Joi.required().custom(objectId),
-  }),
-  body: Joi.object()
-    .keys({
-      name: Joi.string(),
-      tagline: Joi.string().allow(""),
-      location: Joi.string().allow(""),
-      description: Joi.string().allow(""),
-      highlights: Joi.string().allow(""),
-      conditions: Joi.string().allow(""),
-      rating: Joi.number().min(0).max(5),
-      adultPrice: Joi.number(),
-      childPrice: Joi.number(),
-      adultRegularPrice: Joi.number(),
-      childRegularPrice: Joi.number(),
-      discountPercentage: Joi.number().min(0).max(100),
-      comboDiscountPercentage: Joi.number().min(0).max(100),
-      media: Joi.array().items(Joi.string()),
-
-      mediaToRemove: Joi.alternatives().try(Joi.array().items(Joi.string()), Joi.string()),
-      type: Joi.string().valid("single", "combo"),
-      subDestinations: Joi.array().items(Joi.string().custom(objectId)),
-      status: Joi.string().valid("active", "inactive"),
-    })
-    .min(1),
-};
-
 
 const deleteDestination = {
   params: Joi.object().keys({

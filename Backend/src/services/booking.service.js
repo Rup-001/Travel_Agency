@@ -2,6 +2,19 @@ const httpStatus = require("http-status");
 const { Booking, Destination, PromoCode, TicketInventory } = require("../models");
 const ApiError = require("../utils/ApiError");
 const stripeService = require("./stripe.service");
+const config = require("../config/config");
+const moment = require("moment");
+
+/**
+ * Generate a unique human-readable booking ID
+ * Format: BK-YYYYMMDD-XXXX (4 random alphanumeric chars)
+ * @returns {string}
+ */
+const generateBookingId = () => {
+  const dateStr = moment().format("DDMMYY");
+  const randomChars = Math.random().toString(36).substring(2, 6).toUpperCase();
+  return `BK-${dateStr}-${randomChars}`;
+};
 
 /**
  * Calculate total price and validate promo code
@@ -12,14 +25,17 @@ const stripeService = require("./stripe.service");
  * @returns {Promise<Object>}
  */
 const calculateBookingTotal = async (destinationId, adults, children, promoCodeStr) => {
-  // Step 2.1: Database theke destination-er info nilam (Cox's Bazar-er dam koto?)
+  // Step 2.1: Database theke destination-er info nilam
   const destination = await Destination.findById(destinationId);
   if (!destination) {
     throw new ApiError(httpStatus.NOT_FOUND, "Destination not found");
   }
 
+  const adultPrice = destination.type === "combo" ? destination.comboAdultCurrentPrice : destination.adultCurrentPrice;
+  const childPrice = destination.type === "combo" ? destination.comboChildCurrentPrice : destination.childCurrentPrice;
+
   // Dam hishab korchi: adults * rate + children * rate
-  const subTotal = (adults * destination.adultPrice) + (children * destination.childPrice);
+  const subTotal = (adults * adultPrice) + (children * childPrice);
   let finalTotal = subTotal;
   let discountAmount = 0;
   let appliedPromo = null;
@@ -29,11 +45,27 @@ const calculateBookingTotal = async (destinationId, adults, children, promoCodeS
     appliedPromo = await PromoCode.findOne({
       code: promoCodeStr.toUpperCase(),
       status: "active",
-      expiryDate: { $gt: new Date() },
+      validFrom: { $lte: new Date() },
+      validUntil: { $gt: new Date() },
     });
 
     if (!appliedPromo) {
       throw new ApiError(httpStatus.BAD_REQUEST, "Invalid or expired promo code");
+    }
+
+    // Usage Limit Check
+    if (appliedPromo.usageLimit !== null && appliedPromo.usedCount >= appliedPromo.usageLimit) {
+      throw new ApiError(httpStatus.BAD_REQUEST, "Promo code usage limit reached");
+    }
+
+    // Destination Check
+    if (!appliedPromo.isApplicableAll) {
+      const isApplicable = appliedPromo.applicableDestinations.some(
+        (destId) => destId.toString() === destinationId.toString()
+      );
+      if (!isApplicable) {
+        throw new ApiError(httpStatus.BAD_REQUEST, "Promo code is not applicable for this destination");
+      }
     }
 
     // Minimum amount thakle sheta check korlam
@@ -58,8 +90,8 @@ const calculateBookingTotal = async (destinationId, adults, children, promoCodeS
     subTotal,
     discountAmount,
     finalTotal,
-    adultPriceAtBooking: destination.adultPrice,
-    childPriceAtBooking: destination.childPrice,
+    adultPriceAtBooking: adultPrice,
+    childPriceAtBooking: childPrice,
     appliedPromo,
     destinationName: destination.name,
   };
@@ -99,6 +131,7 @@ const createBooking = async (bookingBody) => {
   const ticketIds = availableTickets.map((t) => t._id);
   const finalBookingData = {
     ...bookingBody,
+    bookingId: generateBookingId(), // Set unique human-readable ID
     totalAmount: pricing.finalTotal,
     discountAmount: pricing.discountAmount,
     adultPriceAtBooking: pricing.adultPriceAtBooking,
@@ -108,14 +141,15 @@ const createBooking = async (bookingBody) => {
   };
 
   const booking = await Booking.create(finalBookingData);
+  await booking.populate("tickets");
 
   // Step 3: Stripe-er kache "URL" chailam payment-er jonno
   const session = await stripeService.createCheckoutSession({
     amount: pricing.finalTotal,
     bookingId: booking._id,
     destinationName: pricing.destinationName,
-    successUrl: "http://localhost:3000/booking-success", 
-    cancelUrl: "http://localhost:3000/booking-cancel",   
+    successUrl: config.stripe.successUrl, 
+    cancelUrl: config.stripe.cancelUrl,   
   });
 
   // Save the Stripe Session ID in our database
@@ -148,7 +182,7 @@ const createBooking = async (bookingBody) => {
  * @returns {Promise<QueryResult>}
  */
 const queryBookings = async (filter, options) => {
-  const bookings = await Booking.paginate(filter, { ...options, populate: "user destination" });
+  const bookings = await Booking.paginate(filter, { ...options, populate: "user destination tickets" });
   return bookings;
 };
 
@@ -158,7 +192,7 @@ const queryBookings = async (filter, options) => {
  * @returns {Promise<Booking>}
  */
 const getBookingById = async (id) => {
-  return Booking.findById(id).populate("user destination");
+  return Booking.findById(id).populate("user destination tickets");
 };
 
 /**

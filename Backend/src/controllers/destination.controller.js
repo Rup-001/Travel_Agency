@@ -27,9 +27,11 @@ const createDestination = catchAsync(async (req, res) => {
 
     const destination = await destinationService.createDestination(destinationData);
 
+    const typeLabel = destination.type.charAt(0).toUpperCase() + destination.type.slice(1);
+
     res.status(httpStatus.CREATED).json(
       response({
-        message: "Destination created",
+        message: `${typeLabel} Destination created`,
         status: "OK",
         statusCode: httpStatus.CREATED,
         data: { destination },

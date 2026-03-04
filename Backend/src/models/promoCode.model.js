@@ -10,6 +10,10 @@ const promoCodeSchema = mongoose.Schema(
       trim: true,
       uppercase: true,
     },
+    description: {
+      type: String,
+      trim: true,
+    },
     discountType: {
       type: String,
       enum: ["percentage", "fixed"],
@@ -19,7 +23,12 @@ const promoCodeSchema = mongoose.Schema(
       type: Number,
       required: true,
     },
-    expiryDate: {
+    validFrom: {
+      type: Date,
+      required: true,
+      default: Date.now,
+    },
+    validUntil: {
       type: Date,
       required: true,
     },
@@ -28,16 +37,26 @@ const promoCodeSchema = mongoose.Schema(
       default: 0,
     },
     maxDiscountAmount: {
-      type: Number, // Useful for percentage discounts (e.g., 10% off up to $50)
+      type: Number,
     },
     usageLimit: {
       type: Number,
-      default: null, // null means unlimited
+      default: null,
     },
     usedCount: {
       type: Number,
       default: 0,
     },
+    isApplicableAll: {
+      type: Boolean,
+      default: false,
+    },
+    applicableDestinations: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Destination",
+      },
+    ],
     status: {
       type: String,
       enum: ["active", "inactive"],

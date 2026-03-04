@@ -5,6 +5,12 @@ const createBooking = {
   body: Joi.object().keys({
     destination: Joi.string().custom(objectId).required(),
     visitDate: Joi.date().iso().required(),
+    fullName: Joi.string().required(),
+    email: Joi.string().required().email(),
+    confirmEmail: Joi.string().required().valid(Joi.ref("email")).messages({
+      "any.only": "Email and confirm email must match",
+    }),
+    phone: Joi.string().required(),
     adults: Joi.number().integer().min(1).required(),
     children: Joi.number().integer().min(0),
     promoCode: Joi.string().allow(""),

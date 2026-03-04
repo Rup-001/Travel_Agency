@@ -21,8 +21,17 @@ const createPromoCode = async (promoBody) => {
  * @returns {Promise<QueryResult>}
  */
 const queryPromoCodes = async (filter, options) => {
-  const promoCodes = await PromoCode.paginate(filter, options);
+  const promoCodes = await PromoCode.paginate(filter, { ...options, populate: "applicableDestinations" });
   return promoCodes;
+};
+
+/**
+ * Get promo code by id
+ * @param {ObjectId} id
+ * @returns {Promise<PromoCode>}
+ */
+const getPromoCodeById = async (id) => {
+  return PromoCode.findById(id).populate("applicableDestinations");
 };
 
 /**
@@ -31,7 +40,7 @@ const queryPromoCodes = async (filter, options) => {
  * @returns {Promise<PromoCode>}
  */
 const getPromoCodeByCode = async (code) => {
-  return PromoCode.findOne({ code: code.toUpperCase(), status: "active" });
+  return PromoCode.findOne({ code: code.toUpperCase(), status: "active" }).populate("applicableDestinations");
 };
 
 /**
@@ -45,9 +54,12 @@ const updatePromoCodeById = async (id, updateBody) => {
   if (!promoCode) {
     throw new ApiError(httpStatus.NOT_FOUND, "Promo code not found");
   }
+  if (updateBody.code && (await PromoCode.findOne({ code: updateBody.code, _id: { $ne: id } }))) {
+    throw new ApiError(httpStatus.BAD_REQUEST, "Promo code already exists");
+  }
   Object.assign(promoCode, updateBody);
   await promoCode.save();
-  return promoCode;
+  return promoCode.populate("applicableDestinations");
 };
 
 /**

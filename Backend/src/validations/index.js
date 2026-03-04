@@ -4,3 +4,4 @@ module.exports.heroSectionValidation = require('./heroSection.validation');
 module.exports.destinationValidation = require('./destination.validation');
 module.exports.ticketInventoryValidation = require('./ticketInventory.validation');
 module.exports.bookingValidation = require('./booking.validation');
+module.exports.promoCodeValidation = require('./promoCode.validation');

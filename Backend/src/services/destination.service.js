@@ -36,35 +36,20 @@ const createDestination = async (destinationBody) => {
     }
     destinationBody.subDestinations = uniqueSubs;
 
-    // 🚩 AUTO-CALCULATE Regular Prices for Combo
+    // 🚩 AUTO-CALCULATE Combo Previous Prices (sum of sub-destinations' current prices)
     const subDestinationsData = await Destination.find({ _id: { $in: uniqueSubs } });
     
-    const totalAdultRegularPrice = subDestinationsData.reduce((sum, dest) => sum + (dest.adultPrice || 0), 0);
-    const totalChildRegularPrice = subDestinationsData.reduce((sum, dest) => sum + (dest.childPrice || 0), 0);
+    const totalAdultCurrentPrice = subDestinationsData.reduce((sum, dest) => sum + (dest.adultCurrentPrice || 0), 0);
+    const totalChildCurrentPrice = subDestinationsData.reduce((sum, dest) => sum + (dest.childCurrentPrice || 0), 0);
     
-    destinationBody.adultRegularPrice = totalAdultRegularPrice;
-    destinationBody.childRegularPrice = totalChildRegularPrice;
+    destinationBody.comboAdultPreviousPrice = totalAdultCurrentPrice;
+    destinationBody.comboChildPreviousPrice = totalChildCurrentPrice;
 
-    // Handle Combo Extra Discount Logic
-    if (destinationBody.comboDiscountPercentage > 0) {
-      // 1. If admin gives a percentage, calculate the prices automatically
-      destinationBody.adultPrice = Math.round(totalAdultRegularPrice * (1 - destinationBody.comboDiscountPercentage / 100));
-      destinationBody.childPrice = Math.round(totalChildRegularPrice * (1 - destinationBody.comboDiscountPercentage / 100));
-    } else if (destinationBody.adultPrice < totalAdultRegularPrice) {
-      // 2. If admin gives a price directly, calculate the percentage
-      destinationBody.comboDiscountPercentage = Math.round(
-        ((totalAdultRegularPrice - destinationBody.adultPrice) / totalAdultRegularPrice) * 100
-      );
-    }
-
-    // Set overall discount percentage (sum of individual discounts + combo discount)
-    // We can show the total saving from the original REGULAR prices
-    const totalOriginalAdultPrice = subDestinationsData.reduce((sum, dest) => sum + (dest.adultRegularPrice || dest.adultPrice || 0), 0);
-    if (destinationBody.adultPrice < totalOriginalAdultPrice) {
-      destinationBody.discountPercentage = Math.round(
-        ((totalOriginalAdultPrice - destinationBody.adultPrice) / totalOriginalAdultPrice) * 100
-      );
-    }
+    // Reset single prices for combo if needed, or keep them
+    destinationBody.adultPreviousPrice = 0;
+    destinationBody.adultCurrentPrice = 0;
+    destinationBody.childPreviousPrice = 0;
+    destinationBody.childCurrentPrice = 0;
   }
 
   const destination = await Destination.create(destinationBody);
@@ -140,38 +125,21 @@ const updateDestinationById = async (destinationId, updateBody) => {
     }
     updateBody.subDestinations = uniqueSubs;
 
-    // 🚩 AUTO-CALCULATE Regular Prices for Combo during Update
+    // 🚩 AUTO-CALCULATE Combo Previous Prices during Update
     const subDestinationsData = await Destination.find({ _id: { $in: uniqueSubs } });
     
-    const totalAdultRegularPrice = subDestinationsData.reduce((sum, dest) => sum + (dest.adultPrice || 0), 0);
-    const totalChildRegularPrice = subDestinationsData.reduce((sum, dest) => sum + (dest.childPrice || 0), 0);
+    const totalAdultCurrentPrice = subDestinationsData.reduce((sum, dest) => sum + (dest.adultCurrentPrice || 0), 0);
+    const totalChildCurrentPrice = subDestinationsData.reduce((sum, dest) => sum + (dest.childCurrentPrice || 0), 0);
     
-    updateBody.adultRegularPrice = totalAdultRegularPrice;
-    updateBody.childRegularPrice = totalChildRegularPrice;
+    updateBody.comboAdultPreviousPrice = totalAdultCurrentPrice;
+    updateBody.comboChildPreviousPrice = totalChildCurrentPrice;
 
-    // Handle Combo Extra Discount Logic
-    const comboDiscPerc = updateBody.comboDiscountPercentage || destination.comboDiscountPercentage || 0;
-    
-    if (updateBody.comboDiscountPercentage > 0) {
-      updateBody.adultPrice = Math.round(totalAdultRegularPrice * (1 - updateBody.comboDiscountPercentage / 100));
-      updateBody.childPrice = Math.round(totalChildRegularPrice * (1 - updateBody.comboDiscountPercentage / 100));
-    } else {
-      const finalAdultPrice = updateBody.adultPrice || destination.adultPrice;
-      if (finalAdultPrice < totalAdultRegularPrice) {
-        updateBody.comboDiscountPercentage = Math.round(
-          ((totalAdultRegularPrice - finalAdultPrice) / totalAdultRegularPrice) * 100
-        );
-      }
-    }
-
-    // Set overall discount percentage
-    const totalOriginalAdultPrice = subDestinationsData.reduce((sum, dest) => sum + (dest.adultRegularPrice || dest.adultPrice || 0), 0);
-    const finalAdultPriceForTotal = updateBody.adultPrice || destination.adultPrice;
-    if (finalAdultPriceForTotal < totalOriginalAdultPrice) {
-      updateBody.discountPercentage = Math.round(
-        ((totalOriginalAdultPrice - finalAdultPriceForTotal) / totalOriginalAdultPrice) * 100
-      );
-    }
+    // Reset single prices for combo if type is updated to combo or if already combo
+    updateBody.adultPreviousPrice = 0;
+    updateBody.adultCurrentPrice = 0;
+    updateBody.childPreviousPrice = 0;
+    updateBody.childCurrentPrice = 0;
+    updateBody.media = [];
   }
 
   Object.assign(destination, updateBody);

@@ -9,15 +9,7 @@ const destinationSchema = mongoose.Schema(
       unique: true,
       trim: true,
     },
-    tagline: {
-      type: String,
-      trim: true,
-    },
-    location: {
-      type: String,
-      trim: true,
-    },
-    description: {
+    subTitle: {
       type: String,
       trim: true,
     },
@@ -29,35 +21,61 @@ const destinationSchema = mongoose.Schema(
       type: String,
       trim: true,
     },
-    rating: {
+    adultPreviousPrice: {
+      type: Number,
+      required: true,
+      default: 0,
+    },
+    adultCurrentPrice: {
+      type: Number,
+      required: true,
+      default: 0,
+    },
+    childPreviousPrice: {
+      type: Number,
+      required: true,
+      default: 0,
+    },
+    childCurrentPrice: {
+      type: Number,
+      required: true,
+      default: 0,
+    },
+    adultDiscountPercentage: {
       type: Number,
       default: 0,
     },
-    adultPrice: {
-      type: Number,
-      required: true,
-    },
-    childPrice: {
-      type: Number,
-      required: true,
-    },
-    adultRegularPrice: {
-      type: Number,
-    },
-    childRegularPrice: {
-      type: Number,
-    },
-    discountPercentage: {
+    childDiscountPercentage: {
       type: Number,
       default: 0,
     },
-    comboDiscountPercentage: {
+    // Combo specific pricing
+    comboAdultPreviousPrice: {
+      type: Number,
+      default: 0,
+    },
+    comboAdultCurrentPrice: {
+      type: Number,
+      default: 0,
+    },
+    comboChildPreviousPrice: {
+      type: Number,
+      default: 0,
+    },
+    comboChildCurrentPrice: {
+      type: Number,
+      default: 0,
+    },
+    comboAdultDiscountPercentage: {
+      type: Number,
+      default: 0,
+    },
+    comboChildDiscountPercentage: {
       type: Number,
       default: 0,
     },
     media: {
       type: [String],
-      required: true,
     },
     type: {
       type: String,
@@ -84,6 +102,51 @@ const destinationSchema = mongoose.Schema(
 // add plugin that converts mongoose to json
 destinationSchema.plugin(toJSON);
 destinationSchema.plugin(paginate);
+
+destinationSchema.pre("save", function (next) {
+  if (this.isModified("adultPreviousPrice") || this.isModified("adultCurrentPrice")) {
+    if (this.adultPreviousPrice > 0) {
+      this.adultDiscountPercentage = parseFloat(
+        (((this.adultPreviousPrice - this.adultCurrentPrice) / this.adultPreviousPrice) * 100).toFixed(2)
+      );
+    } else {
+      this.adultDiscountPercentage = 0;
+    }
+  }
+
+  if (this.isModified("childPreviousPrice") || this.isModified("childCurrentPrice")) {
+    if (this.childPreviousPrice > 0) {
+      this.childDiscountPercentage = parseFloat(
+        (((this.childPreviousPrice - this.childCurrentPrice) / this.childPreviousPrice) * 100).toFixed(2)
+      );
+    } else {
+      this.childDiscountPercentage = 0;
+    }
+  }
+
+  // Calculate Combo Discount Percentages
+  if (this.isModified("comboAdultPreviousPrice") || this.isModified("comboAdultCurrentPrice")) {
+    if (this.comboAdultPreviousPrice > 0) {
+      this.comboAdultDiscountPercentage = parseFloat(
+        (((this.comboAdultPreviousPrice - this.comboAdultCurrentPrice) / this.comboAdultPreviousPrice) * 100).toFixed(2)
+      );
+    } else {
+      this.comboAdultDiscountPercentage = 0;
+    }
+  }
+
+  if (this.isModified("comboChildPreviousPrice") || this.isModified("comboChildCurrentPrice")) {
+    if (this.comboChildPreviousPrice > 0) {
+      this.comboChildDiscountPercentage = parseFloat(
+        (((this.comboChildPreviousPrice - this.comboChildCurrentPrice) / this.comboChildPreviousPrice) * 100).toFixed(2)
+      );
+    } else {
+      this.comboChildDiscountPercentage = 0;
+    }
+  }
+
+  next();
+});
 
 /**
  * @typedef Destination

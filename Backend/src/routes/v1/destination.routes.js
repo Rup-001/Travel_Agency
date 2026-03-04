@@ -11,10 +11,6 @@ const upload = fileUploadMiddleware(UPLOADS_FOLDER_DESTINATION, [
   "image/png",
   "image/jpeg",
   "image/webp",
-  "video/mp4",
-  "video/webm",
-  "video/ogg",
-  "video/quicktime",
 ]);
 
 const router = express.Router();

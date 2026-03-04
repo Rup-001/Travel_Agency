@@ -1,19 +1,22 @@
 const express = require("express");
 const auth = require("../../middlewares/auth");
+const validate = require("../../middlewares/validate");
+const { promoCodeValidation } = require("../../validations");
 const { promoCodeController } = require("../../controllers");
 
 const router = express.Router();
 
 router
   .route("/")
-  .post(auth("admin"), promoCodeController.createPromoCode)
-  .get(auth("admin"), promoCodeController.getPromoCodes);
+  .post(auth("admin"), validate(promoCodeValidation.createPromoCode), promoCodeController.createPromoCode)
+  .get(auth("admin"), validate(promoCodeValidation.getPromoCodes), promoCodeController.getPromoCodes);
 
 router
   .route("/:promoId")
-  .patch(auth("admin"), promoCodeController.updatePromoCode)
-  .delete(auth("admin"), promoCodeController.deletePromoCode);
+  .get(auth("admin"), validate(promoCodeValidation.getPromoCode), promoCodeController.getPromoCode)
+  .patch(auth("admin"), validate(promoCodeValidation.updatePromoCode), promoCodeController.updatePromoCode)
+  .delete(auth("admin"), validate(promoCodeValidation.deletePromoCode), promoCodeController.deletePromoCode);
 
-router.get("/validate/:code", auth(), promoCodeController.getPromoCode);
+router.get("/validate/:code", auth(), promoCodeController.getPromoCodeByCode);
 
 module.exports = router;
