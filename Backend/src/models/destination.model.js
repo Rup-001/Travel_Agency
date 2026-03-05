@@ -93,6 +93,22 @@ const destinationSchema = mongoose.Schema(
       enum: ["active", "inactive"],
       default: "active",
     },
+    location: {
+      address: {
+        type: String,
+        trim: true,
+      },
+      latitude: {
+        type: Number,
+      },
+      longitude: {
+        type: Number,
+      },
+      googleMapsLink: {
+        type: String,
+        trim: true,
+      },
+    },
   },
   {
     timestamps: true,

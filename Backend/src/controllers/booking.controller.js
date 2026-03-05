@@ -40,6 +40,21 @@ const getBookings = catchAsync(async (req, res) => {
   );
 });
 
+const getMyBookings = catchAsync(async (req, res) => {
+  const filter = pick(req.query, ["status", "destination"]);
+  filter.user = req.user.id; // Force user ID to be current logged in user
+  const options = pick(req.query, ["sortBy", "limit", "page"]);
+  const result = await bookingService.queryBookings(filter, options);
+  res.status(httpStatus.OK).json(
+    response({
+      message: "My Bookings",
+      status: "OK",
+      statusCode: httpStatus.OK,
+      data: result,
+    })
+  );
+});
+
 const getBooking = catchAsync(async (req, res) => {
   const booking = await bookingService.getBookingById(req.params.bookingId);
   if (!booking) {
@@ -98,6 +113,7 @@ const stripeWebhook = catchAsync(async (req, res) => {
 module.exports = {
   createBooking,
   getBookings,
+  getMyBookings,
   getBooking,
   updateBookingStatus,
   stripeWebhook,

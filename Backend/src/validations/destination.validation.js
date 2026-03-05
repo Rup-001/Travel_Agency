@@ -9,6 +9,12 @@ const createDestination = {
     conditions: Joi.string().allow(""),
     type: Joi.string().valid("single", "combo").required(),
     status: Joi.string().valid("active", "inactive"),
+    location: Joi.object().keys({
+      address: Joi.string().allow(""),
+      latitude: Joi.number(),
+      longitude: Joi.number(),
+      googleMapsLink: Joi.string().allow(""),
+    }),
 
     // Single specific fields
     adultPreviousPrice: Joi.number().when("type", { is: "single", then: Joi.required(), otherwise: Joi.forbidden() }),
@@ -40,6 +46,12 @@ const updateDestination = {
       conditions: Joi.string().allow(""),
       type: Joi.string().valid("single", "combo"),
       status: Joi.string().valid("active", "inactive"),
+    location: Joi.object().keys({
+      address: Joi.string().allow(""),
+      latitude: Joi.number(),
+      longitude: Joi.number(),
+      googleMapsLink: Joi.string().allow(""),
+    }),
 
       // Fields are conditionally forbidden based on the 'type' in the body
       adultPreviousPrice: Joi.number().when("type", { is: "single", then: Joi.number().optional(), otherwise: Joi.forbidden() }),

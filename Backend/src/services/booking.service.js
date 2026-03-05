@@ -141,7 +141,7 @@ const createBooking = async (bookingBody) => {
   };
 
   const booking = await Booking.create(finalBookingData);
-  await booking.populate("tickets");
+  await booking.populate("user destination tickets");
 
   // Step 3: Stripe-er kache "URL" chailam payment-er jonno
   const session = await stripeService.createCheckoutSession({
@@ -182,7 +182,7 @@ const createBooking = async (bookingBody) => {
  * @returns {Promise<QueryResult>}
  */
 const queryBookings = async (filter, options) => {
-  const bookings = await Booking.paginate(filter, { ...options, populate: "user destination tickets" });
+  const bookings = await Booking.paginate(filter, { ...options, populate: "user,destination,tickets" });
   return bookings;
 };
 
