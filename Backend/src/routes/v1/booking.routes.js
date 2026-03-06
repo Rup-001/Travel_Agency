@@ -14,6 +14,15 @@ router
   .get(auth("admin"), validate(bookingValidation.getBookings), bookingController.getBookings);
 
 router
+  .route("/transactions")
+  .get(auth("admin"), validate(bookingValidation.getBookings), bookingController.getTransactions);
+
+router
+  .route("/transactions/export")
+  .get(auth("admin"), 
+  bookingController.exportTransactions);
+
+router
   .route("/my-bookings")
   .get(auth(), validate(bookingValidation.getBookings), bookingController.getMyBookings);
 

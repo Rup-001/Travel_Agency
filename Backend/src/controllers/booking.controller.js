@@ -40,6 +40,31 @@ const getBookings = catchAsync(async (req, res) => {
   );
 });
 
+const getTransactions = catchAsync(async (req, res) => {
+  const filter = pick(req.query, ["destination", "user"]);
+  filter.status = "paid"; // Sudhu payment hoyeche emon booking gulo ekhon transaction
+  const options = pick(req.query, ["sortBy", "limit", "page"]);
+  
+  const result = await bookingService.queryBookings(filter, options);
+  
+  res.status(httpStatus.OK).json(
+    response({
+      message: "Transaction Hub Data",
+      status: "OK",
+      statusCode: httpStatus.OK,
+      data: result,
+    })
+  );
+});
+
+const exportTransactions = catchAsync(async (req, res) => {
+  const buffer = await bookingService.exportTransactionsToExcel();
+  
+  res.setHeader("Content-Disposition", "attachment; filename=transactions.xlsx");
+  res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+  res.status(httpStatus.OK).send(buffer);
+});
+
 const getMyBookings = catchAsync(async (req, res) => {
   const filter = pick(req.query, ["status", "destination"]);
   filter.user = req.user.id; // Force user ID to be current logged in user
@@ -113,6 +138,8 @@ const stripeWebhook = catchAsync(async (req, res) => {
 module.exports = {
   createBooking,
   getBookings,
+  getTransactions,
+  exportTransactions,
   getMyBookings,
   getBooking,
   updateBookingStatus,

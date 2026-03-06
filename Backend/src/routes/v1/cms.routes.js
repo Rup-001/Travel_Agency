@@ -1,17 +1,13 @@
 const express = require("express");
 const auth = require("../../middlewares/auth");
+const { cmsController, heroSectionController } = require("../../controllers");
 const validate = require("../../middlewares/validate");
+const cmsValidation = require("../../validations/cms.validation");
 const heroSectionValidation = require("../../validations/heroSection.validation");
-const heroSectionController = require("../../controllers/heroSection.controller");
 const fileUploadMiddleware = require("../../middlewares/fileUpload");
+
 const UPLOADS_FOLDER_HERO = "./public/uploads/hero";
 const allowedVideoTypes = [
-  // "video/mp4",
-  // "video/webm",
-  // "video/ogg",
-  // "video/quicktime",
-  // "video/x-msvideo",
-  
   "video/mp4",
   "video/mpeg",
   "video/webm",
@@ -41,14 +37,28 @@ const uploadHero = fileUploadMiddleware(UPLOADS_FOLDER_HERO, allowedVideoTypes);
 
 const router = express.Router();
 
+// CMS Admin - Get all pages
+router.route("/").get(auth("admin"), cmsController.getPages);
+
+// Hero Section - Mount original logic under /cms/hero-section
 router
-  .route("/")
+  .route("/hero-section")
   .get(heroSectionController.getHeroSection)
   .patch(
     auth("admin"),
     uploadHero.single("video"),
     validate(heroSectionValidation.updateHeroSection),
     heroSectionController.updateHeroSection
+  );
+
+// Generic CMS Pages - Slug based
+router
+  .route("/:slug")
+  .get(cmsController.getPage)
+  .patch(
+    auth("admin"),
+    validate(cmsValidation.updatePage),
+    cmsController.updatePage
   );
 
 module.exports = router;

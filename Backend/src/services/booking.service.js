@@ -238,6 +238,38 @@ const completeBookingPayment = async (bookingId, session) => {
   return booking;
 };
 
+const XLSX = require("xlsx");
+
+/**
+ * Export paid bookings to Excel buffer
+ * @returns {Promise<Buffer>}
+ */
+const exportTransactionsToExcel = async () => {
+  const bookings = await Booking.find({ status: "paid" })
+    .populate("user", "fullName email")
+    .populate("destination", "name")
+    .sort({ createdAt: -1 });
+
+  const data = bookings.map((b) => ({
+    "Transaction ID": b.paymentIntentId || "N/A",
+    "Booking ID": b.bookingId,
+    "Customer Name": b.user ? b.user.fullName : b.fullName,
+    "Email": b.user ? b.user.email : b.email,
+    "Destination": b.destination ? b.destination.name : "N/A",
+    "Payment Method": b.paymentMethod || "card",
+    "Amount": b.totalAmount,
+    "Date": moment(b.createdAt).format("DD-MM-YYYY HH:mm"),
+  }));
+
+  const worksheet = XLSX.utils.json_to_sheet(data);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Transactions");
+
+  // Generate buffer
+  const buffer = XLSX.write(workbook, { type: "buffer", bookType: "xlsx" });
+  return buffer;
+};
+
 module.exports = {
   createBooking,
   queryBookings,
@@ -245,4 +277,5 @@ module.exports = {
   updateBookingStatus,
   calculateBookingTotal,
   completeBookingPayment,
+  exportTransactionsToExcel,
 };

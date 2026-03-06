@@ -2,13 +2,12 @@ const express = require("express");
 const config = require("../../config/config");
 const authRoute = require("./auth.routes");
 const userRoute = require("./user.routes");
-const heroSectionRoute = require("./heroSection.routes");
+const cmsRoute = require("./cms.routes");
 const destinationRoute = require("./destination.routes");
 const ticketInventoryRoute = require("./ticketInventory.routes");
 const promoCodeRoute = require("./promoCode.routes");
 const bookingRoute = require("./booking.routes");
 const docsRoute = require("./docs.routes");
-
 
 const router = express.Router();
 
@@ -29,8 +28,8 @@ const defaultRoutes = [
     route: userRoute,
   },
   {
-    path: "/hero-section",
-    route: heroSectionRoute,
+    path: "/cms",
+    route: cmsRoute,
   },
   {
     path: "/destinations",
