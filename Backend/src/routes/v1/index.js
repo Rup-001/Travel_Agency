@@ -7,6 +7,7 @@ const destinationRoute = require("./destination.routes");
 const ticketInventoryRoute = require("./ticketInventory.routes");
 const promoCodeRoute = require("./promoCode.routes");
 const bookingRoute = require("./booking.routes");
+const dashboardRoute = require("./dashboard.routes");
 const docsRoute = require("./docs.routes");
 
 const router = express.Router();
@@ -46,6 +47,10 @@ const defaultRoutes = [
   {
     path: "/bookings",
     route: bookingRoute,
+  },
+  {
+    path: "/dashboard",
+    route: dashboardRoute,
   },
 ];
 
