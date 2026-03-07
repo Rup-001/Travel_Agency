@@ -37,6 +37,14 @@ const bookingSchema = mongoose.Schema(
       required: true,
       trim: true,
     },
+    dialCode: {
+      type: String,
+      required: true,
+    },
+    countryCode: {
+      type: String,
+      required: true,
+    },
     adults: {
       type: Number,
       required: true,

@@ -7,3 +7,4 @@ module.exports.TicketInventory = require("./ticketInventory.model");
 module.exports.PromoCode = require("./promoCode.model");
 module.exports.Booking = require("./booking.model");
 module.exports.Notification = require("./notification.model");
+module.exports.Session = require("./session.model");

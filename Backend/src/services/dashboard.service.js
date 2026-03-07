@@ -162,6 +162,28 @@ const getDashboardData = async (filters = {}) => {
     ? destinationPerformance.slice(-5).reverse() 
     : (destinationPerformance.length > 0 ? [...destinationPerformance].reverse().slice(0, 5) : []);
 
+  // 7. Customer Demographics (Country Map)
+  const totalPaidBookings = kpis.totalBookings;
+  const customerDemographics = await Booking.aggregate([
+    { $match: { status: "paid" } },
+    { $group: { _id: "$countryCode", count: { $sum: 1 } } },
+    { 
+      $project: { 
+        countryCode: "$_id", 
+        count: 1, 
+        _id: 0,
+        percentage: { 
+          $cond: [
+            { $gt: [totalPaidBookings, 0] },
+            { $round: [{ $multiply: [{ $divide: ["$count", totalPaidBookings] }, 100] }, 1] },
+            0
+          ]
+        }
+      } 
+    },
+    { $sort: { count: -1 } }
+  ]);
+
   return {
     kpis,
     revenueTrend,
@@ -171,6 +193,7 @@ const getDashboardData = async (filters = {}) => {
     lowTicketAlerts,
     topPerforming,
     underPerforming,
+    customerDemographics,
   };
 };
 

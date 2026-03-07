@@ -4,6 +4,7 @@ const ApiError = require("../utils/ApiError");
 const stripeService = require("./stripe.service");
 const config = require("../config/config");
 const moment = require("moment");
+const { parsePhoneNumber } = require("libphonenumber-js");
 
 /**
  * Generate a unique human-readable booking ID
@@ -129,9 +130,24 @@ const createBooking = async (bookingBody) => {
   // 3. Database-e Booking entry create korchi (Taka katar AGEY)
   // Ekhane status "pending" thakbe
   const ticketIds = availableTickets.map((t) => t._id);
+  
+  // Dynamic Country Code Extraction using libphonenumber-js
+  let countryCode = "Unknown";
+  try {
+    const fullNumber = `${bookingBody.dialCode}${bookingBody.phone}`;
+    const phoneNumber = parsePhoneNumber(fullNumber);
+    if (phoneNumber) {
+      countryCode = phoneNumber.country || "Unknown";
+    }
+  } catch (error) {
+    // If parsing fails, we keep it as "Unknown" or handle as needed
+    console.error("Phone parsing error:", error.message);
+  }
+
   const finalBookingData = {
     ...bookingBody,
     bookingId: generateBookingId(), // Set unique human-readable ID
+    countryCode, // Set detected country code for Map
     totalAmount: pricing.finalTotal,
     discountAmount: pricing.discountAmount,
     adultPriceAtBooking: pricing.adultPriceAtBooking,

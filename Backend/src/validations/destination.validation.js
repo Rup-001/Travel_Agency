@@ -5,6 +5,8 @@ const createDestination = {
   body: Joi.object().keys({
     name: Joi.string().required(),
     subTitle: Joi.string().allow(""),
+    description: Joi.string().allow(""),
+    rating: Joi.number().min(0).max(5),
     highlights: Joi.string().allow(""),
     conditions: Joi.string().allow(""),
     type: Joi.string().valid("single", "combo").required(),
@@ -42,6 +44,8 @@ const updateDestination = {
     .keys({
       name: Joi.string(),
       subTitle: Joi.string().allow(""),
+      description: Joi.string().allow(""),
+      rating: Joi.number().min(0).max(5),
       highlights: Joi.string().allow(""),
       conditions: Joi.string().allow(""),
       type: Joi.string().valid("single", "combo"),

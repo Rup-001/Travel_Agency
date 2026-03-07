@@ -11,6 +11,7 @@ const createBooking = {
       "any.only": "Email and confirm email must match",
     }),
     phone: Joi.string().required(),
+    dialCode: Joi.string().required(),
     adults: Joi.number().integer().min(1).required(),
     children: Joi.number().integer().min(0),
     promoCode: Joi.string().allow(""),

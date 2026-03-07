@@ -1,5 +1,5 @@
 const httpStatus = require("http-status");
-const { Destination } = require("../models");
+const { Destination, Booking } = require("../models");
 const ApiError = require("../utils/ApiError");
 
 /**
@@ -66,8 +66,41 @@ const createDestination = async (destinationBody) => {
  * @returns {Promise<QueryResult>}
  */
 const queryDestinations = async (filter, options) => {
+  if (filter.type === "all") {
+    delete filter.type;
+  }
   const destinations = await Destination.paginate(filter, { ...options, populate: "subDestinations" });
   return destinations;
+};
+
+/**
+ * Get popular destinations (Sorted by booking count, from most popular to least)
+ * @returns {Promise<Destination[]>}
+ */
+const getPopularDestinations = async () => {
+  const popularStats = await Booking.aggregate([
+    { $match: { status: "paid" } },
+    { $group: { _id: "$destination", bookingCount: { $sum: 1 } } },
+    { $sort: { bookingCount: -1 } },
+  ]);
+
+  const statsMap = popularStats.reduce((acc, stat) => {
+    acc[stat._id.toString()] = stat.bookingCount;
+    return acc;
+  }, {});
+
+  const destinations = await Destination.find({ status: "active" })
+    .populate("subDestinations");
+
+  // Sort by bookingCount (from statsMap) and then by name
+  return destinations.sort((a, b) => {
+    const countA = statsMap[a._id.toString()] || 0;
+    const countB = statsMap[b._id.toString()] || 0;
+    if (countB !== countA) {
+      return countB - countA;
+    }
+    return a.name.localeCompare(b.name);
+  });
 };
 
 /**
@@ -164,6 +197,7 @@ const deleteDestinationById = async (destinationId) => {
 module.exports = {
   createDestination,
   queryDestinations,
+  getPopularDestinations,
   getDestinationById,
   updateDestinationById,
   deleteDestinationById,

@@ -81,12 +81,45 @@ const login = catchAsync(async (req, res) => {
   }, 180000); // 3 minute in milliseconds
 
   const tokens = await tokenService.generateAuthTokens(user);
+  
+  // Create a login session
+  await authService.createSession(user, tokens.refresh.token, req);
+
   res.status(httpStatus.OK).json(
     response({
       message: "Login Successful",
       status: "OK",
       statusCode: httpStatus.OK,
       data: { user, tokens },
+    })
+  );
+});
+
+const getActiveSessions = catchAsync(async (req, res) => {
+  const currentToken = req.headers.authorization.split(" ")[1]; // Get the current access token
+  // For identifying the current session accurately, we use the refresh token from the request if possible, 
+  // but since currentToken is an Access Token, let's pass a way to identify. 
+  // For simplicity, let's use the refreshToken if available in headers or body, 
+  // but a better way is to check the refresh token used to generate this access token.
+  // Actually, let's just use the current userId.
+  const sessions = await authService.getSessions(req.user.id, req.body.refreshToken);
+  res.status(httpStatus.OK).json(
+    response({
+      message: "Active Sessions Fetched",
+      status: "OK",
+      statusCode: httpStatus.OK,
+      data: sessions,
+    })
+  );
+});
+
+const removeActiveSession = catchAsync(async (req, res) => {
+  await authService.removeSession(req.user.id, req.params.sessionId);
+  res.status(httpStatus.OK).json(
+    response({
+      message: "Session Removed Successfully",
+      status: "OK",
+      statusCode: httpStatus.OK,
     })
   );
 });
@@ -211,4 +244,6 @@ module.exports = {
   verifyEmail,
   deleteMe,
   changePassword,
+  getActiveSessions,
+  removeActiveSession,
 };

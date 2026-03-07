@@ -9,7 +9,7 @@ const promoCodeRoute = require("./promoCode.routes");
 const bookingRoute = require("./booking.routes");
 const dashboardRoute = require("./dashboard.routes");
 const docsRoute = require("./docs.routes");
-
+const auth = require("../../middlewares/auth");
 const router = express.Router();
 
 // ✅ Root route

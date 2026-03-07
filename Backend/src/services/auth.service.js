@@ -1,10 +1,10 @@
 const httpStatus = require("http-status");
 const tokenService = require("./token.service");
 const userService = require("./user.service");
-const Token = require("../models/token.model");
+const { Token, Session } = require("../models");
 const ApiError = require("../utils/ApiError");
 const { tokenTypes } = require("../config/tokens");
-
+const UAParser = require("ua-parser-js");
 
 const loginUserWithEmailAndPassword = async (email, password, fcmToken) => {
   const user = await userService?.getUserByEmail(email);
@@ -16,6 +16,44 @@ const loginUserWithEmailAndPassword = async (email, password, fcmToken) => {
   return user;
 };
 
+const createSession = async (user, refreshToken, req) => {
+  const ua = new UAParser(req.headers["user-agent"]);
+  const browser = ua.getBrowser().name || "Unknown";
+  const os = ua.getOS().name || "Unknown";
+  const device = ua.getDevice().type || "Desktop";
+  const ipAddress = req.headers["x-forwarded-for"] || req.connection.remoteAddress || "Unknown";
+
+  await Session.create({
+    user: user.id,
+    token: refreshToken,
+    browser,
+    os,
+    device,
+    ipAddress,
+    lastActive: new Date(),
+  });
+};
+
+const getSessions = async (userId, currentRefreshToken) => {
+  const sessions = await Session.find({ user: userId }).sort({ lastActive: -1 });
+  return sessions.map((s) => {
+    const sessionObj = s.toJSON();
+    sessionObj.isCurrent = s.token === currentRefreshToken;
+    delete sessionObj.token; // Don't expose refresh tokens in API
+    return sessionObj;
+  });
+};
+
+const removeSession = async (userId, sessionId) => {
+  const session = await Session.findOne({ _id: sessionId, user: userId });
+  if (!session) {
+    throw new ApiError(httpStatus.NOT_FOUND, "Session not found");
+  }
+  
+  // Also delete the associated Refresh Token so the user is actually logged out
+  await Token.deleteOne({ token: session.token, type: tokenTypes.REFRESH });
+  await session.deleteOne();
+};
 
 const logout = async (refreshToken) => {
   const refreshTokenDoc = await Token.findOne({
@@ -26,6 +64,9 @@ const logout = async (refreshToken) => {
   if (!refreshTokenDoc) {
     throw new ApiError(httpStatus.NOT_FOUND, "Not found");
   }
+  
+  // Also delete associated Session
+  await Session.deleteOne({ token: refreshToken });
   await refreshTokenDoc.deleteOne();
 };
 
@@ -159,4 +200,7 @@ module.exports = {
   deleteMe,
   changePassword,
   verifyNumber,
+  createSession,
+  getSessions,
+  removeSession,
 };

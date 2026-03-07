@@ -13,6 +13,16 @@ const destinationSchema = mongoose.Schema(
       type: String,
       trim: true,
     },
+    description: {
+      type: String,
+      trim: true,
+    },
+    rating: {
+      type: Number,
+      default: 0,
+      min: 0,
+      max: 5,
+    },
     highlights: {
       type: String,
       trim: true,

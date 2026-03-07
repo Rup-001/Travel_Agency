@@ -17,6 +17,8 @@ router.post('/forgot-password', validate(authValidation.forgotPassword), authCon
 router.post('/reset-password', validate(authValidation.resetPassword), authController.resetPassword);
 router.post('/change-password', auth('common'),validate(authValidation.changePassword), authController.changePassword);
 router.post('/logout', validate(authValidation.logout), authController.logout);
+router.get('/sessions', auth(), authController.getActiveSessions);
+router.delete('/sessions/:sessionId', auth(), authController.removeActiveSession);
 router.post('/refresh-tokens', validate(authValidation.refreshTokens), authController.refreshTokens);
 router.post('/send-verification-email', auth(), authController.sendVerificationEmail);
 router.post('/delete-me',auth('user'),validate(authValidation.deleteMe),authController.deleteMe);
