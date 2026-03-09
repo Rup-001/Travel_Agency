@@ -17,6 +17,8 @@ const createDestination = {
       longitude: Joi.number(),
       googleMapsLink: Joi.string().allow(""),
     }),
+    openingTime: Joi.string().allow(""),
+    closingTime: Joi.string().allow(""),
 
     // Single specific fields
     adultPreviousPrice: Joi.number().when("type", { is: "single", then: Joi.required(), otherwise: Joi.forbidden() }),
@@ -56,6 +58,8 @@ const updateDestination = {
       longitude: Joi.number(),
       googleMapsLink: Joi.string().allow(""),
     }),
+    openingTime: Joi.string().allow(""),
+    closingTime: Joi.string().allow(""),
 
       // Fields are conditionally forbidden based on the 'type' in the body
       adultPreviousPrice: Joi.number().when("type", { is: "single", then: Joi.number().optional(), otherwise: Joi.forbidden() }),
@@ -79,6 +83,7 @@ const updateDestination = {
 const getDestinations = {
   query: Joi.object().keys({
     name: Joi.string(),
+    search: Joi.string(),
     type: Joi.string(),
     status: Joi.string(),
     sortBy: Joi.string(),

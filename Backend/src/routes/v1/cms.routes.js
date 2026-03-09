@@ -38,7 +38,7 @@ const uploadHero = fileUploadMiddleware(UPLOADS_FOLDER_HERO, allowedVideoTypes);
 const router = express.Router();
 
 // CMS Admin - Get all pages
-router.route("/").get(auth("admin"), cmsController.getPages);
+router.route("/").get(cmsController.getPages);
 
 // Hero Section - Mount original logic under /cms/hero-section
 router

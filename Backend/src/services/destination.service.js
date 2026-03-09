@@ -69,6 +69,13 @@ const queryDestinations = async (filter, options) => {
   if (filter.type === "all") {
     delete filter.type;
   }
+  if (filter.search) {
+    filter.$or = [
+      { name: { $regex: filter.search, $options: "i" } },
+      // { subTitle: { $regex: filter.search, $options: "i" } },
+    ];
+    delete filter.search;
+  }
   const destinations = await Destination.paginate(filter, { ...options, populate: "subDestinations" });
   return destinations;
 };

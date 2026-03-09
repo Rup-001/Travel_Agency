@@ -119,6 +119,14 @@ const destinationSchema = mongoose.Schema(
         trim: true,
       },
     },
+    openingTime: {
+      type: String,
+      trim: true,
+    },
+    closingTime: {
+      type: String,
+      trim: true,
+    },
   },
   {
     timestamps: true,

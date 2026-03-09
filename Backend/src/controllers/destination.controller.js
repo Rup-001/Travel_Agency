@@ -49,7 +49,7 @@ const createDestination = catchAsync(async (req, res) => {
 
 
 const getDestinations = catchAsync(async (req, res) => {
-  const filter = pick(req.query, ["name", "type", "status"]);
+  const filter = pick(req.query, ["name", "type", "status", "search"]);
   const options = pick(req.query, ["sortBy", "limit", "page"]);
   const result = await destinationService.queryDestinations(filter, options);
   res.status(httpStatus.OK).json(

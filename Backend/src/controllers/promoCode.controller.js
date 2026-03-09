@@ -32,7 +32,7 @@ const getPromoCodes = catchAsync(async (req, res) => {
 });
 
 const getPromoCode = catchAsync(async (req, res) => {
-  const promoCode = await promoCodeService.getPromoCodeById(req.params.promoId);
+  const promoCode = await promoCodeService.getPromoCodeByCode(req.params.promoId);
   if (!promoCode) {
     throw new ApiError(httpStatus.NOT_FOUND, "Promo code not found");
   }
@@ -85,6 +85,19 @@ const getPromoCodeByCode = catchAsync(async (req, res) => {
   );
 });
 
+const validatePromoCode = catchAsync(async (req, res) => {
+  const { code, destinationId } = req.query;
+  const promoCode = await promoCodeService.validatePromoCode(code, destinationId);
+  res.status(httpStatus.OK).json(
+    response({
+      message: "Promo code is valid",
+      status: "OK",
+      statusCode: httpStatus.OK,
+      data: { discountAmount: promoCode.discountAmount },
+    })
+  );
+});
+
 module.exports = {
   createPromoCode,
   getPromoCodes,
@@ -92,4 +105,5 @@ module.exports = {
   getPromoCodeByCode,
   updatePromoCode,
   deletePromoCode,
+  validatePromoCode,
 };

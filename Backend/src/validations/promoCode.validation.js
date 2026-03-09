@@ -30,7 +30,7 @@ const getPromoCodes = {
 
 const getPromoCode = {
   params: Joi.object().keys({
-    promoId: Joi.string().custom(objectId),
+    promoId: Joi.string().custom(objectId).required(),
   }),
 };
 
@@ -62,10 +62,18 @@ const deletePromoCode = {
   }),
 };
 
+const validatePromoCode = {
+  query: Joi.object().keys({
+    code: Joi.string().required().uppercase(),
+    destinationId: Joi.string().required().custom(objectId),
+  }),
+};
+
 module.exports = {
   createPromoCode,
   getPromoCodes,
   getPromoCode,
   updatePromoCode,
   deletePromoCode,
+  validatePromoCode,
 };

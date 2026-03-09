@@ -40,7 +40,7 @@ const getPromoCodeById = async (id) => {
  * @returns {Promise<PromoCode>}
  */
 const getPromoCodeByCode = async (code) => {
-  return PromoCode.findOne({ code: code.toUpperCase(), status: "active" }).populate("applicableDestinations");
+  return PromoCode.findOne({ _id: code, status: "active" }).populate("applicableDestinations");
 };
 
 /**
@@ -76,10 +76,48 @@ const deletePromoCodeById = async (id) => {
   return promoCode;
 };
 
+/**
+ * Validate promo code for a specific destination
+ * @param {string} code
+ * @param {ObjectId} destinationId
+ * @returns {Promise<PromoCode>}
+ */
+const validatePromoCode = async (code, destinationId) => {
+  const promoCode = await PromoCode.findOne({
+    code: code.toUpperCase(),
+    status: "active",
+    validFrom: { $lte: new Date() },
+    validUntil: { $gte: new Date() },
+  });
+
+  if (!promoCode) {
+    throw new ApiError(httpStatus.NOT_FOUND, "Invalid or expired promo code");
+  }
+
+  // Check usage limit if applicable
+  if (promoCode.usageLimit !== null && promoCode.usedCount >= promoCode.usageLimit) {
+    throw new ApiError(httpStatus.BAD_REQUEST, "Promo code usage limit reached");
+  }
+
+  // Check if applicable to all or specific destination
+  if (!promoCode.isApplicableAll) {
+    const isApplicable = promoCode.applicableDestinations.some(
+      (id) => id.toString() === destinationId.toString()
+    );
+    if (!isApplicable) {
+      throw new ApiError(httpStatus.BAD_REQUEST, "Promo code is not applicable for this destination");
+    }
+  }
+
+  return promoCode;
+};
+
 module.exports = {
   createPromoCode,
   queryPromoCodes,
   getPromoCodeByCode,
   updatePromoCodeById,
   deletePromoCodeById,
+  validatePromoCode,
+  getPromoCodeById
 };
