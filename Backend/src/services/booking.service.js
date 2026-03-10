@@ -1,5 +1,6 @@
 const httpStatus = require("http-status");
 const { Booking, Destination, PromoCode, TicketInventory } = require("../models");
+const notificationService = require("./notification.service");
 const ApiError = require("../utils/ApiError");
 const stripeService = require("./stripe.service");
 const config = require("../config/config");
@@ -184,6 +185,28 @@ const createBooking = async (bookingBody) => {
     await pricing.appliedPromo.save();
   }
 
+  // Send Notification for New Booking
+  await notificationService.sendNotificationToAdmins("newBooking", {
+    title: "New Booking Received",
+    content: `A new booking has been created for ${pricing.destinationName} by ${bookingBody.fullName || (booking.user && booking.user.fullName)}. ID: ${booking.bookingId}`,
+    priority: "medium",
+  });
+
+  // Check for Low Inventory Alert
+  const totalTickets = await TicketInventory.countDocuments({ destinationId: bookingBody.destination });
+  const remainingTickets = await TicketInventory.countDocuments({ destinationId: bookingBody.destination, status: "available" });
+
+  if (totalTickets > 0) {
+    const availablePercentage = (remainingTickets / totalTickets) * 100;
+    if (availablePercentage <= 20) {
+      await notificationService.sendNotificationToAdmins("lowInventory", {
+        title: "Low Inventory Alert",
+        content: `Inventory for ${pricing.destinationName} is low. Remaining: ${remainingTickets} (${availablePercentage.toFixed(1)}%)`,
+        priority: "high",
+      });
+    }
+  }
+
   // Result-e amra booking record ebong Stripe-er link pathacchi (Step 4 response-er jonno)
   return {
     booking,
@@ -251,6 +274,15 @@ const completeBookingPayment = async (bookingId, session) => {
   }
   
   await booking.save();
+
+  // Send Notification for Payment Update
+  await notificationService.sendNotificationToAdmins("paymentUpdate", {
+    title: "Payment Received",
+    content: `Payment of ${booking.totalAmount} received for Booking ID: ${booking.bookingId}`,
+    priority: "high",
+    transactionId: booking.paymentIntentId,
+  });
+
   return booking;
 };
 

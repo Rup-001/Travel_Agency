@@ -8,7 +8,6 @@ const router = express.Router();
 
 router.get(
   "/validate-promo",
-  auth(),
   validate(promoCodeValidation.validatePromoCode),
   promoCodeController.validatePromoCode
 );

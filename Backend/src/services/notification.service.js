@@ -1,0 +1,88 @@
+const { Notification, User } = require("../models");
+const logger = require("../config/logger");
+
+/**
+ * Send notification to specific admins based on their settings
+ * @param {string} type - 'newBooking', 'paymentUpdate', 'lowInventory'
+ * @param {Object} notificationData - { title, content, transactionId, icon }
+ */
+const sendNotificationToAdmins = async (type, notificationData) => {
+  try {
+    // 1. Find all admins/superadmins who have this notification type enabled
+    const admins = await User.find({
+      role: { $in: ["admin", "superAdmin"] },
+      [`notificationSettings.${type}`]: true,
+      isDeleted: false,
+    });
+
+    if (admins.length === 0) {
+      return;
+    }
+
+    // 2. Prepare and save notifications for each admin
+    const notifications = admins.map((admin) => ({
+      userId: admin._id,
+      title: notificationData.title,
+      content: notificationData.content,
+      transactionId: notificationData.transactionId || null,
+      type: type,
+      status: "unread",
+      priority: notificationData.priority || "medium",
+    }));
+
+    const savedNotifications = await Notification.insertMany(notifications);
+
+    // 3. Emit real-time notification via Socket.io
+    if (global.io) {
+      savedNotifications.forEach((notif) => {
+        const roomName = `room${notif.userId.toString()}`;
+        global.io.to(roomName).emit("new-notification", notif);
+        logger.info(`Notification emitted to room: ${roomName}`);
+      });
+    }
+  } catch (error) {
+    logger.error("Error sending notification:", error);
+  }
+};
+
+/**
+ * Query for notifications
+ * @param {Object} filter - Mongo filter
+ * @param {Object} options - Query options
+ * @returns {Promise<QueryResult>}
+ */
+const queryNotifications = async (filter, options) => {
+  const notifications = await Notification.paginate(filter, options);
+  return notifications;
+};
+
+/**
+ * Mark notification as read
+ * @param {ObjectId} notificationId
+ * @returns {Promise<Notification>}
+ */
+const markAsRead = async (notificationId) => {
+  const notification = await Notification.findById(notificationId);
+  if (!notification) {
+    throw new ApiError(httpStatus.NOT_FOUND, "Notification not found");
+  }
+  notification.status = "read";
+  await notification.save();
+  return notification;
+};
+
+/**
+ * Mark all notifications as read for a user
+ * @param {ObjectId} userId
+ * @returns {Promise<void>}
+ */
+const markAllAsRead = async (userId) => {
+  await Notification.updateMany({ userId, status: "unread" }, { status: "read" });
+};
+
+module.exports = {
+  sendNotificationToAdmins,
+  queryNotifications,
+  markAsRead,
+  markAllAsRead,
+};

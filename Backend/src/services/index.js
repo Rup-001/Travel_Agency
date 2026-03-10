@@ -10,3 +10,4 @@ module.exports.promoCodeService = require("./promoCode.service");
 module.exports.bookingService = require("./booking.service");
 module.exports.stripeService = require("./stripe.service");
 module.exports.dashboardService = require("./dashboard.service");
+module.exports.notificationService = require("./notification.service");

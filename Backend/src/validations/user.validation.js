@@ -41,6 +41,11 @@ const updateUser = {
       nidNumber: Joi.string(),
       dataOfBirth: Joi.string(),
       address: Joi.string(),
+      notificationSettings: Joi.object().keys({
+        newBooking: Joi.boolean(),
+        paymentUpdate: Joi.boolean(),
+        lowInventory: Joi.boolean(),
+      }),
     })
 };
 

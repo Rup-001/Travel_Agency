@@ -143,6 +143,20 @@ const userSchema = mongoose.Schema(
         default: null,
       },
     },
+    notificationSettings: {
+      newBooking: {
+        type: Boolean,
+        default: true,
+      },
+      paymentUpdate: {
+        type: Boolean,
+        default: true,
+      },
+      lowInventory: {
+        type: Boolean,
+        default: true,
+      },
+    },
   },
   {
     timestamps: true,
