@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Socket.io Test</title>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+</head>
+<body>
+    <h1>Socket.io Test Page</h1>
+
+    <div id="status">Status: Disconnected</div>
+    <div id="messages">Messages: </div>
+
+    <button onclick="connect()">Connect</button>
+    <button onclick="disconnect()">Disconnect</button>
+    <button onclick="joinRoom()">Join Room</button>
+
+    <script>
+        let socket;
+
+        // Connect to Socket.io server
+        function connect() {
+            socket = io("http://10.10.11.91:8000", {
+                transports: ["websocket"],
+                reconnection: false
+            });
+
+            // On successful connection
+            socket.on("connect", () => {
+                document.getElementById("status").innerText = 
+                    "Status: Connected (ID: " + socket.id + ")";
+                console.log("Connected!", socket.id);
+            });
+
+            // Listen for new notifications
+            socket.on("new-notification", (data) => {
+                console.log("New Notification:", data);
+                document.getElementById("messages").innerHTML += 
+                    "<p>" + data.content + "</p>";
+            });
+
+            // On disconnect
+            socket.on("disconnect", (reason) => {
+                document.getElementById("status").innerText = 
+                    "Status: Disconnected (Reason: " + reason + ")";
+                console.log("Disconnected:", reason);
+            });
+
+            // On connection error
+            socket.on("connect_error", (err) => {
+                console.error("Connection Error:", err.message);
+                document.getElementById("status").innerText = 
+                    "Status: Connection Error (" + err.message + ")";
+            });
+        }
+
+        // Disconnect from server
+        function disconnect() {
+            if (socket) socket.disconnect();
+        }
+
+        // Join a specific room
+        function joinRoom() {
+            if (socket) {
+                socket.emit("join-room", { roomId: "699c0bb214d29ef7aab0b1a3" }, (res) => {
+                    console.log("Join Room Ack:", res);
+                    alert("Joined Room!");
+                });
+            }
+        }
+    </script>
+</body>
+</html>

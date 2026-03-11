@@ -43,7 +43,19 @@ app.use(xss());
 app.use(mongoSanitize());
 
 // gzip compression
-app.use(compression());
+// app.use(
+//   compression({
+//     filter: (req, res) => {
+//       if (req.headers["x-no-compression"]) {
+//         return false;
+//       }
+//       if (req.headers.upgrade === "websocket") {
+//         return false;
+//       }
+//       return compression.filter(req, res);
+//     },
+//   })
+// );
 
 // enable cors
 app.use(cors());
@@ -59,7 +71,11 @@ if (config.env === "production") {
 }
 
 // Express Monitor
-app.use(status());
+app.use(status(
+  {
+     socketPath: '/status-socket.io' // Ekhon r main socket-er sathe dhakka khabe na!
+   }
+));
 
 // v1 api routes
 app.use("/api/v1", routes);

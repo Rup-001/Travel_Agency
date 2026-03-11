@@ -1,42 +1,69 @@
 const moment = require("moment");
-const { Booking, Destination, TicketInventory } = require("../models");
+const { Booking, Destination, TicketInventory, User } = require("../models");
 
 /**
  * Helper to get date range based on filter
- * @param {string} filter 
- * @returns {Object} { startDate, endDate }
  */
 const getDateRange = (filter) => {
   const endDate = moment().endOf("day").toDate();
   let startDate;
 
-  if (filter === "year") {
-    startDate = moment().startOf("year").toDate();
-  } else if (filter === "thisMonth") {
+  if (filter === "thisMonth") {
     startDate = moment().startOf("month").toDate();
+  } else if (filter === "year") {
+    startDate = moment().startOf("year").toDate();
   } else if (filter === "last30") {
     startDate = moment().subtract(30, "days").startOf("day").toDate();
   } else {
-    // "all" - start from Unix epoch or a reasonable project start date
-    startDate = new Date(0);
+    startDate = new Date(0); // All time
   }
   return { startDate, endDate };
 };
 
 /**
- * Helper to get trend data based on filter and type
+ * Helper to calculate growth percentage
+ */
+const calculateGrowth = (current, previous) => {
+  if (previous === 0) return current > 0 ? 100 : 0;
+  return parseFloat((((current - previous) / previous) * 100).toFixed(2));
+};
+
+/**
+ * Helper to get comparison data for growth
+ */
+const getMonthlyComparison = async (model, matchQuery = {}, sumField = null) => {
+  const currentStart = moment().startOf("month").toDate();
+  const currentEnd = moment().endOf("day").toDate();
+  const lastStart = moment().subtract(1, "month").startOf("month").toDate();
+  const lastEnd = moment().subtract(1, "month").endOf("month").toDate();
+
+  const [currentData, lastData] = await Promise.all([
+    sumField 
+      ? model.aggregate([{ $match: { ...matchQuery, createdAt: { $gte: currentStart, $lte: currentEnd } } }, { $group: { _id: null, total: { $sum: `$${sumField}` } } }])
+      : model.countDocuments({ ...matchQuery, createdAt: { $gte: currentStart, $lte: currentEnd } }),
+    sumField 
+      ? model.aggregate([{ $match: { ...matchQuery, createdAt: { $gte: lastStart, $lte: lastEnd } } }, { $group: { _id: null, total: { $sum: `$${sumField}` } } }])
+      : model.countDocuments({ ...matchQuery, createdAt: { $gte: lastStart, $lte: lastEnd } }),
+  ]);
+
+  const currentVal = sumField ? (currentData[0]?.total || 0) : currentData;
+  const lastVal = sumField ? (lastData[0]?.total || 0) : lastData;
+
+  return {
+    value: currentVal,
+    growth: calculateGrowth(currentVal, lastVal)
+  };
+};
+
+/**
+ * Get Trend Data
  */
 const getTrendData = async (filter, type) => {
   const { startDate, endDate } = getDateRange(filter);
   const groupFormat = filter === "year" ? "%Y-%m" : "%Y-%m-%d";
 
   const results = await Booking.aggregate([
-    {
-      $match: {
-        status: "paid",
-        createdAt: { $gte: startDate, $lte: endDate },
-      },
-    },
+    { $match: { status: "paid", createdAt: { $gte: startDate, $lte: endDate } } },
     {
       $group: {
         _id: { $dateToString: { format: groupFormat, date: "$createdAt" } },
@@ -46,12 +73,16 @@ const getTrendData = async (filter, type) => {
     { $sort: { _id: 1 } },
   ]);
 
-  return results.map((item) => ({
-    label: filter === "year" 
-      ? moment(item._id, "YYYY-MM").format("MMM") 
-      : moment(item._id, "YYYY-MM-DD").format("DD MMM"),
-    value: item.value,
-  }));
+  const labels = results.map(item => filter === "year" ? moment(item._id, "YYYY-MM").format("MMM") : moment(item._id, "YYYY-MM-DD").format("DD MMM"));
+  const values = results.map(item => item.value);
+
+  // Growth for trend (compare current month vs last month sum)
+  const comparison = await getMonthlyComparison(Booking, { status: "paid" }, type === "revenue" ? "totalAmount" : null);
+
+  return {
+    data: { labels, values },
+    growth: comparison.growth
+  };
 };
 
 /**
@@ -59,142 +90,124 @@ const getTrendData = async (filter, type) => {
  */
 const getDashboardData = async (filters = {}) => {
   const { 
-    kpiFilter = "all",
-    revenueFilter = "last30", 
-    bookingsFilter = "last30", 
-    salesTypeFilter = "all",
-    performanceFilter = "all"
+    kpiFilter,
+    revenueFilter, 
+    bookingsFilter, 
+    salesTypeFilter,
+    performanceFilter,
+    recentBookingFilter,
+    lowTicketFilter,
+    demographicFilter
   } = filters;
 
-  // 1. KPIs (Revenue, Bookings sum)
-  const kpiRange = getDateRange(kpiFilter);
-  const kpiStats = await Promise.all([
-    Booking.aggregate([
-      { $match: { status: "paid", createdAt: { $gte: kpiRange.startDate, $lte: kpiRange.endDate } } },
-      { $group: { _id: null, totalRevenue: { $sum: "$totalAmount" }, totalBookings: { $sum: 1 } } },
-    ]),
-    Destination.countDocuments({ status: "active" }),
-    TicketInventory.countDocuments({ status: "available" }),
-  ]);
+  // Check if any filter is active. If none, show all.
+  const showAll = !Object.values(filters).some(f => f !== undefined);
 
-  const kpis = {
-    totalRevenue: kpiStats[0][0]?.totalRevenue || 0,
-    totalBookings: kpiStats[0][0]?.totalBookings || 0,
-    activeDestinations: kpiStats[1],
-    availableSlots: kpiStats[2],
-  };
+  const data = {};
 
-  // 2. Revenue & Bookings Trend (Charts)
-  const [revenueTrend, bookingsTrend] = await Promise.all([
-    getTrendData(revenueFilter, "revenue"),
-    getTrendData(bookingsFilter, "bookings"),
-  ]);
+  // 1. KPIs
+  if (showAll || kpiFilter) {
+    const [revComp, bookComp, custComp] = await Promise.all([
+      getMonthlyComparison(Booking, { status: "paid" }, "totalAmount"),
+      getMonthlyComparison(Booking, { status: "paid" }),
+      getMonthlyComparison(User, { isDeleted: false }),
+    ]);
 
-  // 3. Sales Type (Donut Chart)
-  const stRange = getDateRange(salesTypeFilter);
-  const salesByType = await Booking.aggregate([
-    { $match: { status: "paid", createdAt: { $gte: stRange.startDate, $lte: stRange.endDate } } },
-    {
-      $lookup: {
-        from: "destinations",
-        localField: "destination",
-        foreignField: "_id",
-        as: "destinationData",
-      },
-    },
-    { $unwind: "$destinationData" },
-    { $group: { _id: "$destinationData.type", count: { $sum: 1 } } },
-    { $project: { type: "$_id", count: 1, _id: 0 } }
-  ]);
+    const activeDest = await Destination.countDocuments({ status: "active" });
+    const availSlots = await TicketInventory.countDocuments({ status: "available" });
 
-  // 4. Recent Bookings (Limit 5)
-  const recentBookings = await Booking.find()
-    .populate("user", "fullName email")
-    .populate("destination", "name")
-    .sort({ createdAt: -1 })
-    .limit(5);
+    data.kpis = {
+      totalRevenue: { value: revComp.value, growth: revComp.growth },
+      totalBookings: { value: bookComp.value, growth: bookComp.growth },
+      totalCustomers: { value: custComp.value, growth: custComp.growth },
+      activeDestinations: { value: activeDest },
+      availableSlots: { value: availSlots },
+    };
+  }
 
-  // 5. Low Ticket Alerts
-  const lowTicketAlerts = await TicketInventory.aggregate([
-    {
-      $group: {
-        _id: "$destinationId",
-        totalTickets: { $sum: 1 },
-        availableTickets: { $sum: { $cond: [{ $eq: ["$status", "available"] }, 1, 0] } },
-      },
-    },
-    {
-      $lookup: {
-        from: "destinations",
-        localField: "_id",
-        foreignField: "_id",
-        as: "destinationData",
-      },
-    },
-    { $unwind: "$destinationData" },
-    { $addFields: { availablePercentage: { $multiply: [{ $divide: ["$availableTickets", "$totalTickets"] }, 100] } } },
-    { $match: { availablePercentage: { $lte: 20 } } },
-    {
-      $project: {
-        _id: 0,
-        destinationName: "$destinationData.name",
-        availableTickets: 1,
-        totalTickets: 1,
-        availablePercentage: { $round: ["$availablePercentage", 1] },
-        status: { $cond: [{ $lte: ["$availablePercentage", 10] }, "Critical", "Low Stock"] },
-      },
-    },
-  ]);
+  // 2. Revenue Trend
+  if (showAll || revenueFilter) {
+    data.revenueTrend = await getTrendData(revenueFilter || "last30", "revenue");
+  }
 
-  // 6. Destination Performance
-  const perfRange = getDateRange(performanceFilter);
-  const destinationPerformance = await Booking.aggregate([
-    { $match: { status: "paid", createdAt: { $gte: perfRange.startDate, $lte: perfRange.endDate } } },
-    { $group: { _id: "$destination", bookingCount: { $sum: 1 }, revenue: { $sum: "$totalAmount" } } },
-    { $lookup: { from: "destinations", localField: "_id", foreignField: "_id", as: "destinationData" } },
-    { $unwind: "$destinationData" },
-    { $project: { _id: 0, destinationName: "$destinationData.name", bookingCount: 1, revenue: 1 } },
-    { $sort: { bookingCount: -1 } },
-  ]);
+  // 3. Bookings Trend
+  if (showAll || bookingsFilter) {
+    data.bookingsTrend = await getTrendData(bookingsFilter || "last30", "bookings");
+  }
 
-  const topPerforming = destinationPerformance.slice(0, 5);
-  const underPerforming = destinationPerformance.length > 5 
-    ? destinationPerformance.slice(-5).reverse() 
-    : (destinationPerformance.length > 0 ? [...destinationPerformance].reverse().slice(0, 5) : []);
+  // 4. Sales Type (Single vs Combo)
+  if (showAll || salesTypeFilter) {
+    const stRange = getDateRange(salesTypeFilter || "all");
+    const salesByType = await Booking.aggregate([
+      { $match: { status: "paid", createdAt: { $gte: stRange.startDate, $lte: stRange.endDate } } },
+      { $lookup: { from: "destinations", localField: "destination", foreignField: "_id", as: "dest" } },
+      { $unwind: "$dest" },
+      { $group: { _id: "$dest.type", count: { $sum: 1 } } }
+    ]);
+    
+    // Simple growth calculation for the whole category
+    const currentMonthData = await getMonthlyComparison(Booking, { status: "paid" });
 
-  // 7. Customer Demographics (Country Map)
-  const totalPaidBookings = kpis.totalBookings;
-  const customerDemographics = await Booking.aggregate([
-    { $match: { status: "paid" } },
-    { $group: { _id: "$countryCode", count: { $sum: 1 } } },
-    { 
-      $project: { 
-        countryCode: "$_id", 
-        count: 1, 
-        _id: 0,
-        percentage: { 
-          $cond: [
-            { $gt: [totalPaidBookings, 0] },
-            { $round: [{ $multiply: [{ $divide: ["$count", totalPaidBookings] }, 100] }, 1] },
-            0
-          ]
-        }
-      } 
-    },
-    { $sort: { count: -1 } }
-  ]);
+    data.salesByType = {
+      data: salesByType.map(s => ({ type: s._id, count: s.count })),
+      growth: currentMonthData.growth
+    };
+  }
 
-  return {
-    kpis,
-    revenueTrend,
-    bookingsTrend,
-    salesByType,
-    recentBookings,
-    lowTicketAlerts,
-    topPerforming,
-    underPerforming,
-    customerDemographics,
-  };
+  // 5. Recent Bookings
+  if (showAll || recentBookingFilter) {
+    data.recentBookings = await Booking.find()
+      .populate("user", "fullName email")
+      .populate("destination", "name")
+      .sort({ createdAt: -1 })
+      .limit(5);
+  }
+
+  // 6. Low Ticket Alerts
+  if (showAll || lowTicketFilter) {
+    data.lowTicketAlerts = await TicketInventory.aggregate([
+      { $group: { _id: "$destinationId", total: { $sum: 1 }, available: { $sum: { $cond: [{ $eq: ["$status", "available"] }, 1, 0] } } } },
+      { $lookup: { from: "destinations", localField: "_id", foreignField: "_id", as: "dest" } },
+      { $unwind: "$dest" },
+      { $project: { name: "$dest.name", available: 1, total: 1, percent: { $multiply: [{ $divide: ["$available", "$total"] }, 100] } } },
+      { $match: { percent: { $lte: 20 } } },
+      { $sort: { percent: 1 } }
+    ]);
+  }
+
+  // 7. Performance (Top & Underperforming)
+  if (showAll || performanceFilter) {
+    const perfRange = getDateRange(performanceFilter || "all");
+    const performance = await Booking.aggregate([
+      { $match: { status: "paid", createdAt: { $gte: perfRange.startDate, $lte: perfRange.endDate } } },
+      { $group: { _id: "$destination", count: { $sum: 1 }, revenue: { $sum: "$totalAmount" } } },
+      { $lookup: { from: "destinations", localField: "_id", foreignField: "_id", as: "dest" } },
+      { $unwind: "$dest" },
+      { $project: { name: "$dest.name", count: 1, revenue: 1 } },
+      { $sort: { count: -1 } }
+    ]);
+
+    // Calculate growth for top performers (simplified: overall count growth)
+    const overallGrowth = await getMonthlyComparison(Booking, { status: "paid" });
+
+    data.performance = {
+      top: performance.slice(0, 5).map(p => ({ ...p, growth: overallGrowth.growth })),
+      under: performance.slice(-5).reverse()
+    };
+  }
+
+  // 8. Customer Demographics
+  if (showAll || demographicFilter) {
+    const total = await Booking.countDocuments({ status: "paid" });
+    data.customerDemographics = await Booking.aggregate([
+      { $match: { status: "paid" } },
+      { $group: { _id: "$countryCode", count: { $sum: 1 } } },
+      { $project: { country: "$_id", count: 1, percentage: { $round: [{ $multiply: [{ $divide: ["$count", total || 1] }, 100] }, 1] } } },
+      { $sort: { count: -1 } }
+    ]);
+  }
+
+  return data;
 };
 
 module.exports = {

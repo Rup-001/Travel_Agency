@@ -21,11 +21,16 @@ const socketIO = (io) => {
     socket.on("leave-room", (data) => {
       if (data?.roomId) {
         socket.leave("room" + data.roomId);
+        console.log(`ID: ${socket.id} left room: room${data.roomId}`);
       }
     });
 
-    socket.on("disconnect", () => {
-      console.log(`ID: ${socket.id} disconnected`);
+    socket.on("error", (err) => {
+      console.error(`Socket Error for ID ${socket.id}:`, err);
+    });
+
+    socket.on("disconnect", (reason) => {
+      console.log(`ID: ${socket.id} disconnected. Reason: ${reason}`);
     });
   });
 };

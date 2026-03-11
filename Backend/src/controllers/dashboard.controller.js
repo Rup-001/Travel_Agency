@@ -4,7 +4,16 @@ const response = require("../config/response");
 const { dashboardService } = require("../services");
 
 const getDashboardSummary = catchAsync(async (req, res) => {
-  const { kpiFilter, revenueFilter, bookingsFilter, salesTypeFilter, performanceFilter } = req.query;
+  const { 
+    kpiFilter, 
+    revenueFilter, 
+    bookingsFilter, 
+    salesTypeFilter, 
+    performanceFilter,
+    recentBookingFilter,
+    lowTicketFilter,
+    demographicFilter
+  } = req.query;
   
   const data = await dashboardService.getDashboardData({
     kpiFilter,
@@ -12,6 +21,9 @@ const getDashboardSummary = catchAsync(async (req, res) => {
     bookingsFilter,
     salesTypeFilter,
     performanceFilter,
+    recentBookingFilter,
+    lowTicketFilter,
+    demographicFilter
   });
   
   res.status(httpStatus.OK).json(
