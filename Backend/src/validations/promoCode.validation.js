@@ -21,6 +21,7 @@ const createPromoCode = {
 const getPromoCodes = {
   query: Joi.object().keys({
     code: Joi.string(),
+    search: Joi.string(),
     status: Joi.string(),
     sortBy: Joi.string(),
     limit: Joi.number().integer(),

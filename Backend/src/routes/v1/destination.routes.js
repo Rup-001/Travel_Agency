@@ -29,6 +29,8 @@ router
   )
   .get(validate(destinationValidation.getDestinations), destinationController.getDestinations);
 
+router.route("/list").get(destinationController.getDestinationList);
+
 router.route("/popular").get(destinationController.getPopularDestinations);
 
 router

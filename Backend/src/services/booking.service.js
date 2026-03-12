@@ -1,5 +1,5 @@
 const httpStatus = require("http-status");
-const { Booking, Destination, PromoCode, TicketInventory } = require("../models");
+const { Booking, Destination, PromoCode, TicketInventory, User } = require("../models");
 const notificationService = require("./notification.service");
 const ApiError = require("../utils/ApiError");
 const stripeService = require("./stripe.service");
@@ -215,13 +215,50 @@ const createBooking = async (bookingBody) => {
 };
 
 /**
- * Query for bookings
- * @param {Object} filter - Mongo filter
- * @param {Object} options - Query options
+ * Query for bookings with search and filters
+ * @param {Object} filter - Simple filters
+ * @param {Object} options - Pagination/sorting options
+ * @param {Object} extraFilters - Search and date range
  * @returns {Promise<QueryResult>}
  */
-const queryBookings = async (filter, options) => {
-  const bookings = await Booking.paginate(filter, { ...options, populate: "user,destination,tickets" });
+const queryBookings = async (filter, options, extraFilters = {}) => {
+  const { search, startDate, endDate } = extraFilters;
+  const query = { ...filter };
+
+  // 1. Date Range Filter
+  if (startDate || endDate) {
+    query.createdAt = {};
+    if (startDate) query.createdAt.$gte = moment(startDate).startOf("day").toDate();
+    if (endDate) query.createdAt.$lte = moment(endDate).endOf("day").toDate();
+  }
+
+  // 2. Complex Search
+  if (search) {
+    // Find matching destinations
+    const matchingDestinations = await Destination.find({
+      name: { $regex: search, $options: "i" }
+    }).select("_id");
+    const destIds = matchingDestinations.map(d => d._id);
+
+    // Find matching users
+    const matchingUsers = await User.find({
+      $or: [
+        { fullName: { $regex: search, $options: "i" } },
+        { email: { $regex: search, $options: "i" } }
+      ]
+    }).select("_id");
+    const userIds = matchingUsers.map(u => u._id);
+
+    query.$or = [
+      { bookingId: { $regex: search, $options: "i" } },
+      { fullName: { $regex: search, $options: "i" } },
+      { email: { $regex: search, $options: "i" } },
+      { destination: { $in: destIds } },
+      { user: { $in: userIds } }
+    ];
+  }
+
+  const bookings = await Booking.paginate(query, { ...options, populate: "user,destination,tickets" });
   return bookings;
 };
 

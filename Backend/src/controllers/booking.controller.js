@@ -29,7 +29,8 @@ const createBooking = catchAsync(async (req, res) => {
 const getBookings = catchAsync(async (req, res) => {
   const filter = pick(req.query, ["status", "destination", "user"]);
   const options = pick(req.query, ["sortBy", "limit", "page"]);
-  const result = await bookingService.queryBookings(filter, options);
+  const extraFilters = pick(req.query, ["search", "startDate", "endDate"]);
+  const result = await bookingService.queryBookings(filter, options, extraFilters);
   res.status(httpStatus.OK).json(
     response({
       message: "All Bookings",
@@ -44,8 +45,9 @@ const getTransactions = catchAsync(async (req, res) => {
   const filter = pick(req.query, ["destination", "user"]);
   filter.status = "paid"; // Sudhu payment hoyeche emon booking gulo ekhon transaction
   const options = pick(req.query, ["sortBy", "limit", "page"]);
+  const extraFilters = pick(req.query, ["search", "startDate", "endDate"]);
   
-  const result = await bookingService.queryBookings(filter, options);
+  const result = await bookingService.queryBookings(filter, options, extraFilters);
   
   res.status(httpStatus.OK).json(
     response({

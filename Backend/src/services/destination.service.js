@@ -201,6 +201,14 @@ const deleteDestinationById = async (destinationId) => {
   return destination;
 };
 
+/**
+ * Get simple list of active destinations (name and id)
+ * @returns {Promise<Destination[]>}
+ */
+const getDestinationList = async () => {
+  return Destination.find({ status: "active" }, "name _id");
+};
+
 module.exports = {
   createDestination,
   queryDestinations,
@@ -208,4 +216,5 @@ module.exports = {
   getDestinationById,
   updateDestinationById,
   deleteDestinationById,
+  getDestinationList,
 };

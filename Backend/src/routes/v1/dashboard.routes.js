@@ -6,6 +6,10 @@ const dashboardController = require("../../controllers/dashboard.controller");
 
 const router = express.Router();
 
+router.get("/revenue-trend", auth("admin"), validate(dashboardValidation.getRevenueTrend), dashboardController.getRevenueTrend);
+router.get("/booking-trend", auth("admin"), validate(dashboardValidation.getBookingTrend), dashboardController.getBookingTrend);
+router.get("/sales-by-type", auth("admin"), validate(dashboardValidation.getSalesByType), dashboardController.getSalesByType);
+
 router
   .route("/")
   .get(

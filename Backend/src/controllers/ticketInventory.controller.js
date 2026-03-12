@@ -1,4 +1,5 @@
 const httpStatus = require("http-status");
+const pick = require("../utils/pick");
 const catchAsync = require("../utils/catchAsync");
 const response = require("../config/response");
 const { ticketInventoryService } = require("../services");
@@ -36,8 +37,8 @@ const getTicketInventories = catchAsync(async (req, res) => {
   );
 });
 const getTicketInventoriesSummary = catchAsync(async (req, res) => {
-  // Added standard CRUD to match architecture
-  const result = await ticketInventoryService.getTicketInventorySummary({}, {});
+  const options = pick(req.query, ["limit", "page"]);
+  const result = await ticketInventoryService.getTicketInventorySummary(req.query.search, options);
   res.status(httpStatus.OK).json(
     response({
       message: "Ticket Inventories summary",

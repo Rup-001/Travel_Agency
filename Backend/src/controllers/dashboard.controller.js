@@ -6,24 +6,20 @@ const { dashboardService } = require("../services");
 const getDashboardSummary = catchAsync(async (req, res) => {
   const { 
     kpiFilter, 
-    revenueFilter, 
-    bookingsFilter, 
-    salesTypeFilter, 
-    performanceFilter,
-    recentBookingFilter,
-    lowTicketFilter,
-    demographicFilter
+    recentbooking, 
+    lowticketralert,
+    topperformingdestination, 
+    underperformingdestination,
+    customerdemograph
   } = req.query;
   
   const data = await dashboardService.getDashboardData({
     kpiFilter,
-    revenueFilter,
-    bookingsFilter,
-    salesTypeFilter,
-    performanceFilter,
-    recentBookingFilter,
-    lowTicketFilter,
-    demographicFilter
+    recentbooking,
+    lowticketralert,
+    topperformingdestination,
+    underperformingdestination,
+    customerdemograph,
   });
   
   res.status(httpStatus.OK).json(
@@ -36,6 +32,45 @@ const getDashboardSummary = catchAsync(async (req, res) => {
   );
 });
 
+const getRevenueTrend = catchAsync(async (req, res) => {
+  const data = await dashboardService.getRevenueTrend(req.query.filter);
+  res.status(httpStatus.OK).json(
+    response({
+      message: "Revenue trend data fetched successfully",
+      status: "OK",
+      statusCode: httpStatus.OK,
+      data: data,
+    })
+  );
+});
+
+const getBookingTrend = catchAsync(async (req, res) => {
+  const data = await dashboardService.getBookingTrend(req.query.filter);
+  res.status(httpStatus.OK).json(
+    response({
+      message: "Booking trend data fetched successfully",
+      status: "OK",
+      statusCode: httpStatus.OK,
+      data: data,
+    })
+  );
+});
+
+const getSalesByType = catchAsync(async (req, res) => {
+  const data = await dashboardService.getSalesByType(req.query.filter);
+  res.status(httpStatus.OK).json(
+    response({
+      message: "Sales by type data fetched successfully",
+      status: "OK",
+      statusCode: httpStatus.OK,
+      data: data,
+    })
+  );
+});
+
 module.exports = {
   getDashboardSummary,
+  getRevenueTrend,
+  getBookingTrend,
+  getSalesByType,
 };
