@@ -31,4 +31,6 @@ router
   .get(auth(), bookingController.getBooking)
   .patch(auth("admin"), validate(bookingValidation.updateBookingStatus), bookingController.updateBookingStatus);
 
+router.get("/:bookingId/download-tickets", auth(), bookingController.downloadTickets);
+
 module.exports = router;

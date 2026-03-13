@@ -94,6 +94,9 @@ const bookingSchema = mongoose.Schema(
         ref: "TicketInventory",
       },
     ],
+    expiresAt: {
+      type: Date,
+    },
     paymentIntentId: {
       type: String,
     },

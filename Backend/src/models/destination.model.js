@@ -127,6 +127,14 @@ const destinationSchema = mongoose.Schema(
       type: String,
       trim: true,
     },
+    timeSummaryBar: {
+      type: String,
+      trim: true,
+    },
+    bookingPolicies: {
+      type: String,
+      trim: true,
+    },
   },
   {
     timestamps: true,

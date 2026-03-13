@@ -17,6 +17,8 @@ mongoose.connect(config.mongoose.url, config.mongoose.options).then(() => {
   // Initialize Socket.io with the HTTP server
   const socketIo = require("socket.io");
   const socketIO = require("./utils/socketIO");
+  const { bookingService } = require("./services");
+
   const io = socketIo(server, {
     cors: {
       origin: "*"
@@ -32,6 +34,11 @@ mongoose.connect(config.mongoose.url, config.mongoose.options).then(() => {
 
   socketIO(io);
   global.io = io;
+
+  // Cleanup expired bookings every minute
+  setInterval(() => {
+    bookingService.cleanupExpiredBookings();
+  }, 60 * 1000);
 
   // Listen on the HTTP server
   server.listen(config.port, myIp, () => {

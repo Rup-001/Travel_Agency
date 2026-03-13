@@ -24,8 +24,12 @@ const ticketInventorySchema = mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["available", "sold"],
+      enum: ["available", "reserved", "sold"],
       default: "available",
+    },
+    expiryDate: {
+      type: Date,
+      required: true,
     },
   },
   {

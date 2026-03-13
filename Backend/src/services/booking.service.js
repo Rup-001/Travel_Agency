@@ -2,10 +2,31 @@ const httpStatus = require("http-status");
 const { Booking, Destination, PromoCode, TicketInventory, User } = require("../models");
 const notificationService = require("./notification.service");
 const ApiError = require("../utils/ApiError");
+const logger = require("../config/logger");
 const stripeService = require("./stripe.service");
 const config = require("../config/config");
 const moment = require("moment");
 const { parsePhoneNumber } = require("libphonenumber-js");
+
+const { generateTicketsPDF } = require("../utils/pdfGenerator");
+
+/**
+ * Generate PDF tickets for a specific booking
+ * @param {ObjectId} bookingId
+ * @returns {Promise<Buffer>}
+ */
+const generateBookingTicketsPDF = async (bookingId) => {
+  const booking = await Booking.findById(bookingId).populate("destination tickets");
+  if (!booking) {
+    throw new ApiError(httpStatus.NOT_FOUND, "Booking not found");
+  }
+
+  if (booking.status !== "paid") {
+    throw new ApiError(httpStatus.BAD_REQUEST, "Tickets are only available for paid bookings");
+  }
+
+  return generateTicketsPDF(booking);
+};
 
 /**
  * Generate a unique human-readable booking ID
@@ -106,17 +127,21 @@ const calculateBookingTotal = async (destinationId, adults, children, promoCodeS
  */
 const createBooking = async (bookingBody) => {
   const totalPeople = bookingBody.adults + (bookingBody.children || 0);
+  const expiryBuffer = 35; // minutes for local DB
+  const stripeExpiryBuffer = 31; // minutes for Stripe (min is 30)
 
   // 1. Ticket inventory-te check korlam je jaiga ache kina
+  // Ekhane amra sudhu oi ticket gulo nibo jader expiryDate ekhon theke kompokkhe 35 min porjonto ache
   const availableTickets = await TicketInventory.find({
     destinationId: bookingBody.destination,
     status: "available",
+    expiryDate: { $gt: moment().add(expiryBuffer, 'minutes').toDate() }
   }).limit(totalPeople);
 
   if (availableTickets.length < totalPeople) {
     throw new ApiError(
       httpStatus.BAD_REQUEST,
-      `Not enough tickets available. Current stock: ${availableTickets.length}`
+      `Not enough tickets available. Current stock: ${availableTickets.length}. Tickets must be valid for at least ${expiryBuffer} minutes.`
     );
   }
 
@@ -155,6 +180,7 @@ const createBooking = async (bookingBody) => {
     childPriceAtBooking: pricing.childPriceAtBooking,
     tickets: ticketIds,
     status: "pending",
+    expiresAt: moment().add(expiryBuffer, 'minutes').toDate(),
   };
 
   const booking = await Booking.create(finalBookingData);
@@ -166,17 +192,18 @@ const createBooking = async (bookingBody) => {
     bookingId: booking._id,
     destinationName: pricing.destinationName,
     successUrl: config.stripe.successUrl, 
-    cancelUrl: config.stripe.cancelUrl,   
+    cancelUrl: config.stripe.cancelUrl,
+    expiresAt: Math.floor(Date.now() / 1000) + (stripeExpiryBuffer * 60),
   });
 
   // Save the Stripe Session ID in our database
   booking.stripeSessionId = session.id;
   await booking.save();
 
-  // Ticket-gulo ekhon "sold" (locked) kore rakhlam
+  // Ticket-gulo ekhon "reserved" (locked) kore rakhlam
   await TicketInventory.updateMany(
     { _id: { $in: ticketIds } },
-    { $set: { status: "sold" } }
+    { $set: { status: "reserved" } }
   );
 
   // Promo code-er usage barhiye dilam
@@ -312,6 +339,14 @@ const completeBookingPayment = async (bookingId, session) => {
   
   await booking.save();
 
+  // Update ticket status from reserved to sold
+  if (booking.tickets && booking.tickets.length > 0) {
+    await TicketInventory.updateMany(
+      { _id: { $in: booking.tickets } },
+      { $set: { status: "sold" } }
+    );
+  }
+
   // Send Notification for Payment Update
   await notificationService.sendNotificationToAdmins("paymentUpdate", {
     title: "Payment Received",
@@ -355,6 +390,41 @@ const exportTransactionsToExcel = async () => {
   return buffer;
 };
 
+/**
+ * Cleanup expired pending bookings and release tickets
+ * @returns {Promise<void>}
+ */
+const cleanupExpiredBookings = async () => {
+  try {
+    const expiredBookings = await Booking.find({
+      status: "pending",
+      expiresAt: { $lt: new Date() },
+    });
+
+    if (expiredBookings.length === 0) {
+      return;
+    }
+
+    logger.info(`Cleaning up ${expiredBookings.length} expired bookings`);
+
+    for (const booking of expiredBookings) {
+      // Release tickets
+      if (booking.tickets && booking.tickets.length > 0) {
+        await TicketInventory.updateMany(
+          { _id: { $in: booking.tickets } },
+          { $set: { status: "available" } }
+        );
+      }
+
+      // Cancel booking
+      booking.status = "cancelled";
+      await booking.save();
+    }
+  } catch (error) {
+    logger.error("Error in cleanupExpiredBookings task:", error);
+  }
+};
+
 module.exports = {
   createBooking,
   queryBookings,
@@ -363,4 +433,6 @@ module.exports = {
   calculateBookingTotal,
   completeBookingPayment,
   exportTransactionsToExcel,
+  cleanupExpiredBookings,
+  generateBookingTicketsPDF,
 };

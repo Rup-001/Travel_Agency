@@ -6,13 +6,10 @@ const stripe = require("stripe")(config.stripe.secretKey);
  * @param {Object} sessionBody
 ...
  */
-const createCheckoutSession = async ({ amount, currency = 'usd', bookingId, destinationName, successUrl, cancelUrl }) => {
+const createCheckoutSession = async ({ amount, currency = 'usd', bookingId, destinationName, successUrl, cancelUrl, expiresAt }) => {
   try {
-    const session = await stripe.checkout.sessions.create({
-      // Explicitly define payment methods to avoid 'automatic_payment_methods' errors
-      // 'card' thakle eikhane G-Pay/Apple Pay dashboard theke manage hobe
+    const sessionOptions = {
       payment_method_types: ["card"], 
-      
       line_items: [
         {
           price_data: {
@@ -28,8 +25,14 @@ const createCheckoutSession = async ({ amount, currency = 'usd', bookingId, dest
       mode: 'payment',
       success_url: successUrl,
       cancel_url: cancelUrl,
-      client_reference_id: bookingId.toString(), 
-    });
+      client_reference_id: bookingId.toString(),
+    };
+
+    if (expiresAt) {
+      sessionOptions.expires_at = expiresAt;
+    }
+
+    const session = await stripe.checkout.sessions.create(sessionOptions);
     
     return session;
   } catch (error) {

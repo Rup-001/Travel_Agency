@@ -5,13 +5,14 @@ const response = require("../config/response");
 const { ticketInventoryService } = require("../services");
 
 const uploadTickets = catchAsync(async (req, res) => {
-  const { destinationId } = req.body;
+  const { destinationId, expiryDate } = req.body;
   const uploadedBy = req.user.id;
 
   const tickets = await ticketInventoryService.processTicketUpload(
     req.file.buffer,
     destinationId,
-    uploadedBy
+    uploadedBy,
+    expiryDate
   );
 
   res.status(httpStatus.CREATED).json(

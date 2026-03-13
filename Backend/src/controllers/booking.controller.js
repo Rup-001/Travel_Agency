@@ -18,7 +18,7 @@ const createBooking = catchAsync(async (req, res) => {
   // Step 4: Shob thik thakle, frontend-ke success response pathiye dilam (sathe Stripe-er URL)
   res.status(httpStatus.CREATED).json(
     response({
-      message: "Booking created",
+      message: "Booking created. Please complete payment within 30 minutes to secure your tickets.",
       status: "OK",
       statusCode: httpStatus.CREATED,
       data: result,
@@ -137,6 +137,39 @@ const stripeWebhook = catchAsync(async (req, res) => {
   res.status(httpStatus.OK).send({ received: true });
 });
 
+const downloadTickets = catchAsync(async (req, res) => {
+  const booking = await bookingService.getBookingById(req.params.bookingId);
+  if (!booking) {
+    throw new ApiError(httpStatus.NOT_FOUND, "Booking not found");
+  }
+
+  if (!req.user) {
+    throw new ApiError(httpStatus.UNAUTHORIZED, "Please authenticate");
+  }
+
+  // Extract User IDs for comparison
+  const currentUserId = (req.user.id || req.user._id || "").toString();
+  const currentUserRole = req.user.role;
+  
+  const bookingUserId = booking.user && booking.user._id 
+    ? booking.user._id.toString() 
+    : (booking.user ? booking.user.toString() : null);
+  
+  // Security: Only the user who made the booking or an admin can download the tickets
+  if (bookingUserId !== currentUserId && currentUserRole !== 'admin') {
+    throw new ApiError(httpStatus.FORBIDDEN, "You are not authorized to download these tickets");
+  }
+
+  const buffer = await bookingService.generateBookingTicketsPDF(req.params.bookingId);
+  
+  res.writeHead(httpStatus.OK, {
+    "Content-Type": "application/pdf",
+    "Content-Disposition": `attachment; filename=tickets-${req.params.bookingId}.pdf`,
+    "Content-Length": buffer.length
+  });
+  res.end(buffer);
+});
+
 module.exports = {
   createBooking,
   getBookings,
@@ -146,4 +179,5 @@ module.exports = {
   getBooking,
   updateBookingStatus,
   stripeWebhook,
+  downloadTickets,
 };
