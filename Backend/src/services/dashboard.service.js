@@ -190,9 +190,27 @@ const getSalesByType = async (filter) => {
   ]);
   
   const comparison = await getMonthlyComparison(Booking, { status: "paid" });
+  const typeOrder = ["single", "combo"];
+
+  const salesMap = salesByType.reduce((map, item) => {
+    if (item?._id) {
+      map[item._id] = item.count || 0;
+    }
+    return map;
+  }, {});
+
+  const normalizedData = [
+    ...typeOrder.map((type) => ({ type, count: salesMap[type] || 0 })),
+    ...salesByType
+      .filter((item) => !typeOrder.includes(item?._id))
+      .map((item) => ({ type: item._id || "unknown", count: item.count || 0 })),
+  ];
+
+  const totalSales = normalizedData.reduce((sum, item) => sum + (item.count || 0), 0);
 
   return {
-    data: salesByType.map(s => ({ type: s._id, count: s.count })),
+    data: normalizedData,
+    totalSales,
     growth: comparison.growth
   };
 };

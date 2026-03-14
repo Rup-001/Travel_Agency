@@ -20,12 +20,12 @@ const createBooking = {
 
 const getBookings = {
   query: Joi.object().keys({
-    status: Joi.string().valid("pending", "paid", "cancelled"),
-    destination: Joi.string().custom(objectId),
-    user: Joi.string().custom(objectId),
+    status: Joi.string().valid("pending", "paid", "cancelled").allow(""),
+    destination: Joi.alternatives().try(Joi.string().custom(objectId), Joi.string().valid("")),
+    user: Joi.alternatives().try(Joi.string().custom(objectId), Joi.string().valid("")),
     search: Joi.string().allow(""),
-    startDate: Joi.date().iso(),
-    endDate: Joi.date().iso(),
+    startDate: Joi.alternatives().try(Joi.date().iso(), Joi.string().valid("")),
+    endDate: Joi.alternatives().try(Joi.date().iso(), Joi.string().valid("")),
     sortBy: Joi.string(),
     limit: Joi.number().integer(),
     page: Joi.number().integer(),

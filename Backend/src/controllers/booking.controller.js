@@ -5,6 +5,39 @@ const catchAsync = require("../utils/catchAsync");
 const response = require("../config/response");
 const { bookingService, stripeService } = require("../services");
 
+const stripEmptyStrings = (obj = {}) => {
+  Object.keys(obj).forEach((key) => {
+    if (obj[key] === "") {
+      delete obj[key];
+    }
+  });
+  return obj;
+};
+
+const formatBookingSummary = (booking) => {
+  const totalTickets = (booking.adults || 0) + (booking.children || 0);
+  return {
+    bookingId: booking.bookingId,
+    customerName: (booking.user && booking.user.fullName) || booking.fullName,
+    customerEmail: (booking.user && booking.user.email) || booking.email,
+    customerPhone: booking.phone ? `${booking.dialCode || ""} ${booking.phone}`.trim() : "",
+    destinationName: (booking.destination && booking.destination.name) || "N/A",
+    bookingDate: booking.createdAt,
+    totalTickets,
+    totalAmount: booking.totalAmount,
+  };
+};
+
+const formatTransactionSummary = (booking) => ({
+  transactionId: booking.paymentIntentId || booking.stripeSessionId || "N/A",
+  bookingId: booking.bookingId,
+  customerName: (booking.user && booking.user.fullName) || booking.fullName,
+  package: (booking.destination && booking.destination.name) || "N/A",
+  paymentMethod: booking.paymentMethod || "card",
+  totalAmount: booking.totalAmount,
+  date: booking.createdAt,
+});
+
 const createBooking = catchAsync(async (req, res) => {
   // Step 1: Frontend theke request ashlo, amra user-er ID-ta set kore nilam
   const bookingData = { 
@@ -27,34 +60,36 @@ const createBooking = catchAsync(async (req, res) => {
 });
 
 const getBookings = catchAsync(async (req, res) => {
-  const filter = pick(req.query, ["status", "destination", "user"]);
-  const options = pick(req.query, ["sortBy", "limit", "page"]);
-  const extraFilters = pick(req.query, ["search", "startDate", "endDate"]);
+  const filter = stripEmptyStrings(pick(req.query, ["status", "destination", "user"]));
+  const options = stripEmptyStrings(pick(req.query, ["sortBy", "limit", "page"]));
+  const extraFilters = stripEmptyStrings(pick(req.query, ["search", "startDate", "endDate"]));
   const result = await bookingService.queryBookings(filter, options, extraFilters);
+  const simplifiedResults = result.results.map(formatBookingSummary);
   res.status(httpStatus.OK).json(
     response({
       message: "All Bookings",
       status: "OK",
       statusCode: httpStatus.OK,
-      data: result,
+      data: { ...result, results: simplifiedResults },
     })
   );
 });
 
 const getTransactions = catchAsync(async (req, res) => {
-  const filter = pick(req.query, ["destination", "user"]);
+  const filter = stripEmptyStrings(pick(req.query, ["destination", "user"]));
   filter.status = "paid"; // Sudhu payment hoyeche emon booking gulo ekhon transaction
-  const options = pick(req.query, ["sortBy", "limit", "page"]);
-  const extraFilters = pick(req.query, ["search", "startDate", "endDate"]);
+  const options = stripEmptyStrings(pick(req.query, ["sortBy", "limit", "page"]));
+  const extraFilters = stripEmptyStrings(pick(req.query, ["search", "startDate", "endDate"]));
   
   const result = await bookingService.queryBookings(filter, options, extraFilters);
+  const simplifiedResults = result.results.map(formatTransactionSummary);
   
   res.status(httpStatus.OK).json(
     response({
       message: "Transaction Hub Data",
       status: "OK",
       statusCode: httpStatus.OK,
-      data: result,
+      data: { ...result, results: simplifiedResults },
     })
   );
 });
@@ -68,9 +103,9 @@ const exportTransactions = catchAsync(async (req, res) => {
 });
 
 const getMyBookings = catchAsync(async (req, res) => {
-  const filter = pick(req.query, ["status", "destination"]);
+  const filter = stripEmptyStrings(pick(req.query, ["status", "destination"]));
   filter.user = req.user.id; // Force user ID to be current logged in user
-  const options = pick(req.query, ["sortBy", "limit", "page"]);
+  const options = stripEmptyStrings(pick(req.query, ["sortBy", "limit", "page"]));
   const result = await bookingService.queryBookings(filter, options);
   res.status(httpStatus.OK).json(
     response({

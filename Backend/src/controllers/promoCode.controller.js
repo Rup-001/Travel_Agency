@@ -5,6 +5,39 @@ const catchAsync = require("../utils/catchAsync");
 const response = require("../config/response");
 const { promoCodeService } = require("../services");
 
+const formatPromoCodeSummary = (promo) => {
+  const destinationNames = promo.isApplicableAll
+    ? []
+    : ((promo.applicableDestinations || []).map((dest) => dest?.name).filter(Boolean));
+  const destinationLabel = promo.isApplicableAll
+    ? "All destinations"
+    : `${destinationNames.length} destination${destinationNames.length === 1 ? "" : "s"}`;
+
+  return {
+    code: promo.code,
+    description: promo.description,
+    discount: {
+      type: promo.discountType,
+      amount: promo.discountAmount,
+    },
+    destinations: {
+      isApplicableAll: promo.isApplicableAll,
+      label: destinationLabel,
+      names: destinationNames,
+    },
+    validPeriod: {
+      from: promo.validFrom,
+      to: promo.validUntil,
+    },
+    usage: {
+      used: promo.usedCount,
+      limit: promo.usageLimit,
+      label: promo.usageLimit ? `${promo.usedCount}/${promo.usageLimit}` : `${promo.usedCount} used`,
+    },
+    status: promo.status,
+  };
+};
+
 const createPromoCode = catchAsync(async (req, res) => {
   const promoCode = await promoCodeService.createPromoCode(req.body);
   res.status(httpStatus.CREATED).json(
@@ -21,12 +54,13 @@ const getPromoCodes = catchAsync(async (req, res) => {
   const filter = pick(req.query, ["code", "status", "search"]);
   const options = pick(req.query, ["sortBy", "limit", "page"]);
   const result = await promoCodeService.queryPromoCodes(filter, options);
+  const simplifiedResults = result.results.map(formatPromoCodeSummary);
   res.status(httpStatus.OK).json(
     response({
       message: "All Promo Codes",
       status: "OK",
       statusCode: httpStatus.OK,
-      data: result,
+      data: { ...result, results: simplifiedResults },
     })
   );
 });
