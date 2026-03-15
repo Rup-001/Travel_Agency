@@ -21,13 +21,12 @@ mongoose.connect(config.mongoose.url, config.mongoose.options).then(() => {
 
   const io = socketIo(server, {
     cors: {
-      origin: "*"
+      origin: ["https://mohaimin8000.sobhoy.com", "http://localhost:8080", "http://localhost:3000"],
+      methods: ["GET", "POST"],
+      credentials: true
     },
-    transports: ["websocket"], // Use WebSocket only for stability
+    transports: ["polling", "websocket"], // Allow both for handshake stability
     allowEIO3: true,
-    httpCompression: false,
-    perMessageDeflate: false,
-    cleanupEmptyChildNamespaces: true,
     pingTimeout: 60000,
     pingInterval: 25000,
   });
@@ -40,9 +39,12 @@ mongoose.connect(config.mongoose.url, config.mongoose.options).then(() => {
     bookingService.cleanupExpiredBookings();
   }, 60 * 1000);
 
+  // Listen on all interfaces if myIp is localhost or undefined
+  const listenIp = (myIp === "localhost" || !myIp) ? "0.0.0.0" : myIp;
+
   // Listen on the HTTP server
-  server.listen(config.port, myIp, () => {
-    logger.info(`Listening to ip http://${myIp}:${config.port}`);
+  server.listen(config.port, listenIp, () => {
+    logger.info(`Listening to ip http://${listenIp}:${config.port}`);
   });
 });
 

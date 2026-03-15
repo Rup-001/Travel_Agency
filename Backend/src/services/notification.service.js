@@ -1,5 +1,8 @@
+const mongoose = require("mongoose");
+const httpStatus = require("http-status");
 const { Notification, User } = require("../models");
 const logger = require("../config/logger");
+const ApiError = require("../utils/ApiError");
 
 /**
  * Send notification to specific admins based on their settings
@@ -77,7 +80,10 @@ const markAsRead = async (notificationId) => {
  * @returns {Promise<void>}
  */
 const markAllAsRead = async (userId) => {
-  await Notification.updateMany({ userId, status: "unread" }, { status: "read" });
+  // Convert to ObjectId if it's a string to ensure query matches
+  const id = typeof userId === 'string' ? new mongoose.Types.ObjectId(userId) : userId;
+  const result = await Notification.updateMany({ userId: id, status: "unread" }, { status: "read" });
+  logger.info(`Marked all notifications as read for user ${id}. Modified count: ${result.modifiedCount}`);
 };
 
 module.exports = {

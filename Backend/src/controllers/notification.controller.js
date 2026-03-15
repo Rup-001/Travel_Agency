@@ -6,7 +6,9 @@ const response = require("../config/response");
 const { notificationService } = require("../services");
 
 const getNotifications = catchAsync(async (req, res) => {
-  const filter = { userId: req.user.id };
+  const filter = pick(req.query, ["status", "type"]);
+  filter.userId = req.user.id;
+  
   const options = pick(req.query, ["sortBy", "limit", "page"]);
   
   // Set default sort to newest first
