@@ -6,14 +6,23 @@ const response = require("../config/response");
 const { promoCodeService } = require("../services");
 
 const formatPromoCodeSummary = (promo) => {
+  const applicableDestinations = promo.applicableDestinations || [];
   const destinationNames = promo.isApplicableAll
     ? []
-    : ((promo.applicableDestinations || []).map((dest) => dest?.name).filter(Boolean));
+    : (applicableDestinations.map((dest) => {
+        // Handle both populated and unpopulated cases
+        if (typeof dest === "object" && dest !== null) {
+          return dest.name;
+        }
+        return null;
+      }).filter(Boolean));
+  
   const destinationLabel = promo.isApplicableAll
     ? "All destinations"
     : `${destinationNames.length} destination${destinationNames.length === 1 ? "" : "s"}`;
 
   return {
+    id: promo._id || promo.id,
     code: promo.code,
     description: promo.description,
     discount: {
@@ -66,7 +75,7 @@ const getPromoCodes = catchAsync(async (req, res) => {
 });
 
 const getPromoCode = catchAsync(async (req, res) => {
-  const promoCode = await promoCodeService.getPromoCodeByCode(req.params.promoId);
+  const promoCode = await promoCodeService.getPromoCodeById(req.params.promoId);
   if (!promoCode) {
     throw new ApiError(httpStatus.NOT_FOUND, "Promo code not found");
   }

@@ -96,13 +96,9 @@ const login = catchAsync(async (req, res) => {
 });
 
 const getActiveSessions = catchAsync(async (req, res) => {
-  const currentToken = req.headers.authorization.split(" ")[1]; // Get the current access token
-  // For identifying the current session accurately, we use the refresh token from the request if possible, 
-  // but since currentToken is an Access Token, let's pass a way to identify. 
-  // For simplicity, let's use the refreshToken if available in headers or body, 
-  // but a better way is to check the refresh token used to generate this access token.
-  // Actually, let's just use the current userId.
-  const sessions = await authService.getSessions(req.user.id, req.body.refreshToken);
+  // Use refreshToken from body (if POST) or query (if GET) to identify the current session
+  const refreshToken = req.body.refreshToken || req.query.refreshToken;
+  const sessions = await authService.getSessions(req.user.id, refreshToken);
   res.status(httpStatus.OK).json(
     response({
       message: "Active Sessions Fetched",

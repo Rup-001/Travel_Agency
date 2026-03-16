@@ -21,8 +21,11 @@ const queryPromoCodes = async (filter, options) => {
     query.code = { $regex: query.search, $options: "i" };
     delete query.search;
   }
-  const promoCodes = await PromoCode.paginate(query, { ...options, populate: "applicableDestinations" });
-  return promoCodes;
+  
+  const result = await PromoCode.paginate(query, options);
+  // Manual population after pagination to be 100% sure
+  result.results = await PromoCode.populate(result.results, { path: "applicableDestinations" });
+  return result;
 };
 
 /**

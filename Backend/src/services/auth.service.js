@@ -38,8 +38,9 @@ const getSessions = async (userId, currentRefreshToken) => {
   const sessions = await Session.find({ user: userId }).sort({ lastActive: -1 });
   return sessions.map((s) => {
     const sessionObj = s.toJSON();
-    sessionObj.isCurrent = s.token === currentRefreshToken;
-    delete sessionObj.token; // Don't expose refresh tokens in API
+    // Identify current session by comparing tokens
+    sessionObj.isCurrent = currentRefreshToken ? s.token === currentRefreshToken : false;
+    delete sessionObj.token; // IMPORTANT: Never expose the actual refresh token strings
     return sessionObj;
   });
 };
@@ -50,7 +51,7 @@ const removeSession = async (userId, sessionId) => {
     throw new ApiError(httpStatus.NOT_FOUND, "Session not found");
   }
   
-  // Also delete the associated Refresh Token so the user is actually logged out
+  // Also delete the associated Refresh Token to force logout on that device
   await Token.deleteOne({ token: session.token, type: tokenTypes.REFRESH });
   await session.deleteOne();
 };
