@@ -71,11 +71,11 @@ if (config.env === "production") {
 }
 
 // Express Monitor
-app.use(status(
-  {
-     socketPath: '/status-socket.io' // Ekhon r main socket-er sathe dhakka khabe na!
-   }
-));
+// app.use(status(
+//   {
+//      socketPath: '/status-socket.io' // Ekhon r main socket-er sathe dhakka khabe na!
+//    }
+// ));
 
 // v1 api routes
 app.use("/api/v1", routes);

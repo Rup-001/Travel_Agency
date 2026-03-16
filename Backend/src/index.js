@@ -14,6 +14,17 @@ mongoose.connect(config.mongoose.url, config.mongoose.options).then(() => {
   // Create an explicit HTTP server
   server = http.createServer(app);
 
+  // Intercept upgrade requests to strip compression headers ONLY for main socket
+  // Use prependListener to ensure this runs BEFORE Socket.io's own upgrade handler
+  server.prependListener('upgrade', (req, socket, head) => {
+    if (req.url && req.url.includes('/socket.io/')) {
+      if (req.headers['sec-websocket-extensions']) {
+        console.log(`[Socket.io] Stripping extensions for: ${req.url}`);
+        delete req.headers['sec-websocket-extensions'];
+      }
+    }
+  });
+
   // Initialize Socket.io with the HTTP server
   const socketIo = require("socket.io");
   const socketIO = require("./utils/socketIO");
@@ -21,16 +32,19 @@ mongoose.connect(config.mongoose.url, config.mongoose.options).then(() => {
 
   const io = socketIo(server, {
     cors: {
-      origin: ["https://mohaimin8000.sobhoy.com", "http://localhost:8080", "http://localhost:3000"],
+      origin: "*",
       methods: ["GET", "POST"],
-      credentials: true
+      credentials: true,
     },
-    transports: ["polling", "websocket"], // Allow both for handshake stability
+    path: "/socket.io/",
+    transports: ["websocket"],
     allowEIO3: true,
     pingTimeout: 60000,
     pingInterval: 25000,
+    // Explicitly disable compression to fix RSV1 error
+    perMessageDeflate: false,
+    httpCompression: false,
   });
-
   socketIO(io);
   global.io = io;
 
