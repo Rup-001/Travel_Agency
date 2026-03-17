@@ -208,6 +208,9 @@ const deleteDestinationById = async (destinationId) => {
 const getDestinationList = async () => {
   return Destination.find({ status: "active" }, "name _id");
 };
+const getDestinationListSingle = async () => {
+  return Destination.find({ status: "active", type: "single"  }, "name _id");
+};
 
 module.exports = {
   createDestination,
@@ -217,4 +220,5 @@ module.exports = {
   updateDestinationById,
   deleteDestinationById,
   getDestinationList,
+  getDestinationListSingle
 };

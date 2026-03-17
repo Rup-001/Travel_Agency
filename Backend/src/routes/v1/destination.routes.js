@@ -11,6 +11,7 @@ const upload = fileUploadMiddleware(UPLOADS_FOLDER_DESTINATION, [
   "image/png",
   "image/jpeg",
   "image/webp",
+  "image/avif"
 ]);
 
 const router = express.Router();
@@ -30,6 +31,7 @@ router
   .get(validate(destinationValidation.getDestinations), destinationController.getDestinations);
 
 router.route("/list").get(destinationController.getDestinationList);
+router.route("/list/single").get(destinationController.getDestinationListSingle);
 
 router.route("/popular").get(destinationController.getPopularDestinations);
 

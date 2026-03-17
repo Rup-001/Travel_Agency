@@ -128,7 +128,7 @@ const getTicketInventorySummary = async (search = "", options = {}) => {
   const limit = parseInt(options.limit, 10) || 10;
   const skip = (page - 1) * limit;
 
-  const matchQuery = {};
+  const matchQuery = { type: "single" };
   if (search) {
     matchQuery.name = { $regex: search, $options: "i" };
   }
@@ -172,7 +172,11 @@ const getTicketInventorySummary = async (search = "", options = {}) => {
             0,
             { $multiply: [{ $divide: ["$availableTickets", "$totalTickets"] }, 100] }
           ]
-        },
+        }
+      }
+    },
+    {
+      $addFields: {
         stockStatus: {
           $switch: {
             branches: [

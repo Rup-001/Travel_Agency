@@ -73,6 +73,17 @@ const getDestinationList = catchAsync(async (req, res) => {
     })
   );
 });
+const getDestinationListSingle = catchAsync(async (req, res) => {
+  const result = await destinationService.getDestinationListSingle();
+  res.status(httpStatus.OK).json(
+    response({
+      message: "Destination List (Name & ID)",
+      status: "OK",
+      statusCode: httpStatus.OK,
+      data: result,
+    })
+  );
+});
 
 const getPopularDestinations = catchAsync(async (req, res) => {
   const result = await destinationService.getPopularDestinations();
@@ -190,5 +201,6 @@ module.exports = {
   getDestination,
   updateDestination,
   deleteDestination,
-  getDestinationList
+  getDestinationList,
+  getDestinationListSingle
 };
