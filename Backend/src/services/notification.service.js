@@ -12,13 +12,17 @@ const ApiError = require("../utils/ApiError");
 const sendNotificationToAdmins = async (type, notificationData) => {
   try {
     // 1. Find all admins/superadmins who have this notification type enabled
+    // Using $ne: false so that if the field is missing (default), it still finds them
     const admins = await User.find({
       role: { $in: ["admin", "superAdmin"] },
-      [`notificationSettings.${type}`]: true,
+      [`notificationSettings.${type}`]: { $ne: false },
       isDeleted: false,
     });
 
+    console.log(`Notification: Found ${admins.length} admins to notify for type: ${type}`);
+
     if (admins.length === 0) {
+      console.log(`Notification: No admins found with ${type} enabled.`);
       return;
     }
 
@@ -34,14 +38,19 @@ const sendNotificationToAdmins = async (type, notificationData) => {
     }));
 
     const savedNotifications = await Notification.insertMany(notifications);
+    console.log(`Saved ${savedNotifications.length} notifications to database.`);
 
     // 3. Emit real-time notification via Socket.io
     if (global.io) {
+      console.log("Socket.IO: global.io is available, emitting notifications...");
       savedNotifications.forEach((notif) => {
         const roomName = `room${notif.userId.toString()}`;
+        console.log(`Socket.IO: Emitting to ${roomName} for event 'new-notification'`);
         global.io.to(roomName).emit("new-notification", notif);
         logger.info(`Notification emitted to room: ${roomName}`);
       });
+    } else {
+      console.warn("Socket.IO: global.io is NOT available!");
     }
   } catch (error) {
     logger.error("Error sending notification:", error);

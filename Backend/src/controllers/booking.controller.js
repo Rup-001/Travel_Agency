@@ -159,10 +159,12 @@ const stripeWebhook = catchAsync(async (req, res) => {
   // Jodi payment successfull hoy (checkout.session.completed)
   if (event.type === "checkout.session.completed") {
     const session = event.data.object;
+    console.log("Stripe Webhook: Payment completed for session:", session.id);
     
     // Step 6: Booking ID-ta niye database-e status "paid" kore dilam
     // Sathe session-ta-o pathalam jate Transaction ID ar Payment Method save kora jay
     await bookingService.completeBookingPayment(session.client_reference_id, session);
+    console.log("Stripe Webhook: completeBookingPayment called for:", session.client_reference_id);
   }
 
   console.log(event);
