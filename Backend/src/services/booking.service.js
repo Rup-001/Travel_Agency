@@ -16,7 +16,10 @@ const { generateTicketsPDF } = require("../utils/pdfGenerator");
  * @returns {Promise<Buffer>}
  */
 const generateBookingTicketsPDF = async (bookingId) => {
-  const booking = await Booking.findById(bookingId).populate("destination tickets");
+  const booking = await Booking.findById(bookingId).populate({
+    path: "destination",
+    populate: { path: "subDestinations" }
+  }).populate("tickets");
   if (!booking) {
     throw new ApiError(httpStatus.NOT_FOUND, "Booking not found");
   }
@@ -130,32 +133,60 @@ const createBooking = async (bookingBody) => {
   const expiryBuffer = 35; // minutes for local DB
   const stripeExpiryBuffer = 31; // minutes for Stripe (min is 30)
 
-  // 1. Ticket inventory-te check korlam je jaiga ache kina
-  // Ekhane amra sudhu oi ticket gulo nibo jader expiryDate ekhon theke kompokkhe 35 min porjonto ache
-  const availableTickets = await TicketInventory.find({
-    destinationId: bookingBody.destination,
-    status: "available",
-    expiryDate: { $gt: moment().add(expiryBuffer, 'minutes').toDate() }
-  }).limit(totalPeople);
-
-  if (availableTickets.length < totalPeople) {
-    throw new ApiError(
-      httpStatus.BAD_REQUEST,
-      `Not enough tickets available. Current stock: ${availableTickets.length}. Tickets must be valid for at least ${expiryBuffer} minutes.`
-    );
+  // 1. Fetch destination details to check type
+  const destination = await Destination.findById(bookingBody.destination);
+  if (!destination) {
+    throw new ApiError(httpStatus.NOT_FOUND, "Destination not found");
   }
 
-  // 2. Final Pricing hishab korlam (Price Check step)
+  let ticketIds = [];
+
+  if (destination.type === "combo") {
+    // Combo Logic: Collect tickets from ALL sub-destinations
+    if (!destination.subDestinations || destination.subDestinations.length === 0) {
+      throw new ApiError(httpStatus.BAD_REQUEST, "Combo destination has no sub-destinations defined");
+    }
+
+    for (const subDestId of destination.subDestinations) {
+      const availableTickets = await TicketInventory.find({
+        destinationId: subDestId,
+        status: "available",
+        expiryDate: { $gt: moment().add(expiryBuffer, 'minutes').toDate() }
+      }).limit(totalPeople);
+
+      if (availableTickets.length < totalPeople) {
+        const subDest = await Destination.findById(subDestId);
+        throw new ApiError(
+          httpStatus.BAD_REQUEST,
+          `Not enough tickets for sub-destination: ${subDest?.name || subDestId}. Required: ${totalPeople}, Available: ${availableTickets.length}`
+        );
+      }
+      ticketIds = ticketIds.concat(availableTickets.map(t => t._id));
+    }
+  } else {
+    // Single Logic: Collect tickets from the destination itself
+    const availableTickets = await TicketInventory.find({
+      destinationId: bookingBody.destination,
+      status: "available",
+      expiryDate: { $gt: moment().add(expiryBuffer, 'minutes').toDate() }
+    }).limit(totalPeople);
+
+    if (availableTickets.length < totalPeople) {
+      throw new ApiError(
+        httpStatus.BAD_REQUEST,
+        `Not enough tickets available. Required: ${totalPeople}, Current stock: ${availableTickets.length}`
+      );
+    }
+    ticketIds = availableTickets.map((t) => t._id);
+  }
+
+  // 2. Final Pricing calculation
   const pricing = await calculateBookingTotal(
     bookingBody.destination,
     bookingBody.adults,
     bookingBody.children,
     bookingBody.promoCode
   );
-
-  // 3. Database-e Booking entry create korchi (Taka katar AGEY)
-  // Ekhane status "pending" thakbe
-  const ticketIds = availableTickets.map((t) => t._id);
   
   // Dynamic Country Code Extraction using libphonenumber-js
   let countryCode = "Unknown";
