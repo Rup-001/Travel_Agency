@@ -14,7 +14,7 @@ const response = (response = {}) => {
   }
 
   if (response.token) {
-    responseObject.data.token = response.tokens;
+    responseObject.data.token = response.token;
   }
 
   return responseObject;

@@ -4,7 +4,7 @@ const userService = require("./user.service");
 const { Token, Session } = require("../models");
 const ApiError = require("../utils/ApiError");
 const { tokenTypes } = require("../config/tokens");
-const UAParser = require("ua-parser-js");
+const { UAParser } = require("ua-parser-js");
 
 const loginUserWithEmailAndPassword = async (email, password, fcmToken) => {
   const user = await userService?.getUserByEmail(email);
@@ -23,6 +23,20 @@ const createSession = async (user, refreshToken, req) => {
   const device = ua.getDevice().type || "Desktop";
   const ipAddress = req.headers["x-forwarded-for"] || req.connection.remoteAddress || "Unknown";
 
+  console.log(`[DEBUG] Creating session for user: ${user.id}`);
+  
+  // Clean up existing sessions for the same user on the same browser/OS to prevent duplicates
+  const deletedSessions = await Session.deleteMany({
+    user: user.id,
+    browser,
+    os,
+    // ipAddress // Optional: uncomment if you want to be very specific
+  });
+  
+  if (deletedSessions.deletedCount > 0) {
+    console.log(`[DEBUG] Cleaned up ${deletedSessions.deletedCount} old sessions for this browser.`);
+  }
+
   await Session.create({
     user: user.id,
     token: refreshToken,
@@ -35,12 +49,22 @@ const createSession = async (user, refreshToken, req) => {
 };
 
 const getSessions = async (userId, currentRefreshToken) => {
+  console.log(`[DEBUG] Fetching sessions for user: ${userId}`);
+  console.log(`[DEBUG] Current Refresh Token (truncated): ${currentRefreshToken ? currentRefreshToken.slice(-10) : 'none'}`);
+  
   const sessions = await Session.find({ user: userId }).sort({ lastActive: -1 });
+  console.log(`[DEBUG] Found ${sessions.length} sessions in DB`);
+
   return sessions.map((s) => {
     const sessionObj = s.toJSON();
     // Identify current session by comparing tokens
     sessionObj.isCurrent = currentRefreshToken ? s.token === currentRefreshToken : false;
-    delete sessionObj.token; // IMPORTANT: Never expose the actual refresh token strings
+    
+    if (sessionObj.isCurrent) {
+      console.log(`[DEBUG] Identified current session: ${s._id}`);
+    }
+
+    delete sessionObj.token; 
     return sessionObj;
   });
 };
@@ -74,17 +98,39 @@ const logout = async (refreshToken) => {
 
 const refreshAuth = async (refreshToken) => {
   try {
+    console.log(`[DEBUG] Refreshing auth with token (truncated): ${refreshToken.slice(-10)}`);
     const refreshTokenDoc = await tokenService.verifyToken(
       refreshToken,
       tokenTypes.REFRESH
     );
     const user = await userService.getUserById(refreshTokenDoc.user);
     if (!user) {
+      console.error("[DEBUG] User not found for refresh token");
       throw new Error();
     }
-    await refreshTokenDoc.remove();
-    return tokenService.generateAuthTokens(user);
+
+    // Find the session associated with the old refresh token
+    const session = await Session.findOne({ user: user.id, token: refreshToken });
+    if (!session) {
+      console.error("[DEBUG] No session found for the old refresh token");
+      throw new ApiError(httpStatus.UNAUTHORIZED, "Session expired or removed");
+    }
+
+    // Generate new tokens
+    const newTokens = await tokenService.generateAuthTokens(user);
+    
+    // Update session with new refresh token and activity time
+    session.token = newTokens.refresh.token;
+    session.lastActive = new Date();
+    await session.save();
+    console.log(`[DEBUG] Session ${session._id} updated with new token`);
+
+    // Remove the old refresh token document
+    await refreshTokenDoc.deleteOne();
+    
+    return newTokens;
   } catch (error) {
+    console.error("[DEBUG] Refresh Auth failed:", error);
     throw new ApiError(httpStatus.UNAUTHORIZED, "Please authenticate");
   }
 };
