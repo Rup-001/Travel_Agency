@@ -16,7 +16,9 @@ const createDestination = catchAsync(async (req, res) => {
   try {
     if (req.files?.media?.length > 0) {
       req.files.media.forEach((file) => {
-        mediaPaths.push(`/uploads/destinations/${file.filename}`);
+        // Handle Cloudinary (file.path), S3 (file.location), or Local Storage
+        const filePath = file.path || file.location || `/uploads/destinations/${file.filename}`;
+        mediaPaths.push(filePath);
       });
 
       if (mediaPaths.length > 5) {
@@ -134,7 +136,9 @@ const updateDestination = catchAsync(async (req, res) => {
   const newMediaPaths = [];
   if (req.files?.media?.length > 0) {
     req.files.media.forEach((file) => {
-      newMediaPaths.push(`/uploads/destinations/${file.filename}`);
+      // Handle Cloudinary (file.path), S3 (file.location), or Local Storage
+      const filePath = file.path || file.location || `/uploads/destinations/${file.filename}`;
+      newMediaPaths.push(filePath);
     });
   }
 
