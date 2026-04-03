@@ -1,8 +1,9 @@
 const redis = require('redis');
 const logger = require('./logger');
+const config = require('./config');
 
 const client = redis.createClient({
-  url: 'redis://127.0.0.1:6379'
+  url: `redis://${config.redis.host}:${config.redis.port}`
 });
 
 client.on('error', (err) => logger.error('Redis Client Error', err));

@@ -27,6 +27,8 @@ const envVarsSchema = Joi.object()
     STRIPE_WEBHOOK_SECRET: Joi.string().required().description('Stripe webhook secret'),
     STRIPE_SUCCESS_URL: Joi.string().required().description('Stripe success url'),
     STRIPE_CANCEL_URL: Joi.string().required().description('Stripe cancel url'),
+    REDIS_HOST: Joi.string().default('127.0.0.1').description('Redis host'),
+    REDIS_PORT: Joi.number().default(6379).description('Redis port'),
   })
   .unknown();
 
@@ -46,6 +48,10 @@ module.exports = {
       useNewUrlParser: true,
       useUnifiedTopology: true,
     },
+  },
+  redis: {
+    host: envVars.REDIS_HOST,
+    port: envVars.REDIS_PORT,
   },
   jwt: {
     secret: envVars.JWT_SECRET,

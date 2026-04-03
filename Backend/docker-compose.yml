@@ -1,0 +1,37 @@
+version: "3.9"
+services:
+  redis:
+    image: redis:alpine
+    ports:
+      - "6379:6379"
+    restart: always
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:3000" #eta host machine-er 8000 port ke container-er 3000 port-e map korbe
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - MONGODB_URL=${MONGODB_URL}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_ACCESS_EXPIRATION_MINUTES=30
+      - JWT_REFRESH_EXPIRATION_DAYS=30
+      - JWT_RESET_PASSWORD_EXPIRATION_MINUTES=10
+      - JWT_VERIFY_EMAIL_EXPIRATION_MINUTES=10
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_PORT=${SMTP_PORT}
+      - SMTP_USERNAME=${SMTP_USERNAME}
+      - SMTP_PASSWORD=${SMTP_PASSWORD}
+      - EMAIL_FROM=${EMAIL_FROM}
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
+      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET}
+      - STRIPE_SUCCESS_URL=${STRIPE_SUCCESS_URL}
+      - STRIPE_CANCEL_URL=${STRIPE_CANCEL_URL}
+      - BACKEND_IP=0.0.0.0
+    depends_on:
+      - redis
