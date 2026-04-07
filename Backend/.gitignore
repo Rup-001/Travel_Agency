@@ -1,23 +1,32 @@
-# Dependencies
-node_modules
+# Dependency directories
+node_modules/
 
-# yarn error logs
-yarn-error.log
-
-# Environment varibales
+# Environment variables
 .env
+.env.*
+!.env.example
 
+# Build outputs
+dist/
+build/
 
+# Docker logs and artifacts
+*.log
+docker-compose.yml.backup
+Dockerfile.backup
+
+# OS files
+.DS_Store
+Thumbs.db
 
 Backend initial setup.postman_collection.json
-ecosystem.config.json
 
-# Code coverage
-coverage
+README_docker-compose.md
 
-app.log*
+README_Dockerfile.md
 
-/public
-/dist
+.github/
 
-README.md
+GEMINI.md
+
+public/
