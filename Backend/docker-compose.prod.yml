@@ -1,25 +1,21 @@
 version: "3.9"
 services:
   redis:
-    container_name: travel-backend-redis-dev
+    container_name: travel-backend-redis-prod
     image: redis:alpine
-    ports:
-      - "6379:6379"
     restart: always
 
   api:
-    container_name: travel-backend-api-dev
+    container_name: travel-backend-api-prod
     build:
       context: .
       dockerfile: Dockerfile
-      target: development
+      target: production
     ports:
       - "8000:3000"
-    volumes:
-      - .:/app
-      - /app/node_modules
+    restart: always
     environment:
-      - NODE_ENV=development
+      - NODE_ENV=production
       - PORT=3000
       - MONGODB_URL=${MONGODB_URL}
       - REDIS_HOST=redis

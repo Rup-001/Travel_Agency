@@ -9,9 +9,17 @@ const getHeroSection = catchAsync(async (req, res) => {
 
 const updateHeroSection = catchAsync(async (req, res) => {
   const heroBody = { ...req.body };
+  
   if (req.file) {
-    heroBody.video_url = `uploads/hero/${req.file.filename}`;
+    // S3/Supabase return req.file.location (Full URL)
+    // Local Multer return req.file.filename (Only filename)
+    if (req.file.location) {
+      heroBody.video_url = req.file.location;
+    } else {
+      heroBody.video_url = `uploads/hero/${req.file.filename}`;
+    }
   }
+
   const heroSection = await heroSectionService.updateHeroSection(heroBody, req.user.id);
   res.status(httpStatus.OK).send(heroSection);
 });

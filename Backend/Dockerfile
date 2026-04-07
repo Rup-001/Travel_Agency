@@ -1,44 +1,27 @@
-# # Build stage
-# FROM node:24-alpine AS builder
-# WORKDIR /app
-# COPY package*.json ./
-# RUN npm install
-# COPY . .
-# EXPOSE 3000
-# CMD ["npm", "run", "dev"]
-
-# # Runtime stage
-# FROM node:24-alpine
-# WORKDIR /app
-# COPY package*.json ./
-# RUN npm ci --only=production
-# # Webpack build folder copy kora
-# COPY --from=builder /app/dist ./dist
-# # Source folder copy kora (optional, jodi index.js src-e thake)
-# COPY --from=builder /app/src ./src
-# ENV NODE_ENV=production
-# EXPOSE 3000
-# CMD ["node", "dist/index.js"]
-
-
-
-# 1. Use the official Node.js 24 Alpine image for a small footprint
-FROM node:24-alpine
-
-# 2. Set the working directory inside the container
+# --- STAGE 1: BASE ---
+FROM node:24-alpine AS base
 WORKDIR /app
-
-# 3. Copy package.json and package-lock.json first (optimizes layer caching)
 COPY package*.json ./
+# Production dependencies by default
+RUN npm install --omit=dev
 
-# 4. Install all dependencies
+# --- STAGE 2: DEVELOPMENT ---
+# Local machine-e Nodemon run korar jonno
+FROM base AS development
+# Dev-er jonno shob dependencies (including nodemon) install hobe
 RUN npm install
-
-# 5. Copy the rest of the application code
 COPY . .
-
-# 6. Expose the port the app runs on
 EXPOSE 3000
-
-# 7. Start the application in development mode
 CMD ["npm", "run", "dev"]
+
+# --- STAGE 3: PRODUCTION ---
+# Final clean image server-er jonno (Running directly from src/)
+FROM node:24-alpine AS production
+WORKDIR /app
+# Only production dependencies copy kora
+COPY --from=base /app/node_modules ./node_modules
+COPY . .
+ENV NODE_ENV=production
+EXPOSE 3000
+# Webpack bade sora-sori src/index.js run korbe
+CMD ["node", "src/index.js"]
